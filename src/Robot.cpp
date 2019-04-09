@@ -8,7 +8,7 @@
 
 Robot::Robot() {
     this->connected = true;
-    serial::Serial mySerial("/dev/tty.Bluetooth-Incoming-Port", 115200, serial::Timeout::simpleTimeout(1000));
+    serial::Serial mySerial("/dev/ ", 115200, serial::Timeout::simpleTimeout(1000));
 
     std::cout << "Is the serial port open?";
     if(mySerial.isOpen())
