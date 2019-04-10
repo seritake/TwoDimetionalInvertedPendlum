@@ -7,7 +7,7 @@
 #include "vector"
 
 const int TIM_MAX = 65536;
-const int WHEEL_RADIUS = 24;
+const int WHEEL_RADIUS = 22;
 const int COUNT_PER_ROTATE = 480;
 
 class Robot {
@@ -20,6 +20,7 @@ private:
     struct RobotInfo {
         double theta;
         double omega;
+        double secDiff;
         std::vector<double> wheelVelocity;
         std::vector<double> robotVelocity;
         std::vector<double> selfCorVelocity;
@@ -28,14 +29,14 @@ private:
     void communicate();
     void writeDuty();
     void calcSpeed();
-    void setCount(std::string response);
+    void calcVelocityAndTheta();
+    void setCount(std::string& response);
 
 public:
     Robot();
     Robot(std::string& portPath);
     bool getConnected() const;
-    void sendCommand();
-    void setDuty(const std::vector<int> vec);
+    void setDuty(const std::vector<int>& vec);
 };
 
 

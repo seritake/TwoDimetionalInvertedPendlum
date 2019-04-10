@@ -9,12 +9,24 @@
 #include <thread>
 #include <sstream>
 #include <iomanip>
+#include <cmath>
 
-using namespace std;
+const double PI = 3.1415926535;
+const double L = 120;
+const std::vector<std::vector<double> > gMatrix = {
+        {0.0, -1.0 / (2.0 * std::sin(PI/3)), 1.0 / (2.0 * std::sin(PI / 3))},
+        {1 / (1 + std::cos(PI / 3)), -1.0 / (2.0 * ( 1.0 + std::cos(PI / 3)))},
+        {std::cos(PI/3) / ( L * (1 + std::cos(PI / 3))), 1 / (2 * L * (1 + std::cos(PI / 3))), 1 / (2 * L * (1 + std::cos(PI / 3)))}
+};
+
+inline std::vector<std::vector<double> > bMatrix(double theta) {
+    return {{0}};
+};
 
 Robot::Robot() {
     this->connected = true;
     this->robotInfo = {
+            0,
             0,
             0,
             {0,0,0},
@@ -54,27 +66,48 @@ void Robot::communicate() {
         }
         this->setCount(result);
         this->calcSpeed();
-        std::cout << this->robotInfo.wheelVelocity[0] << std::endl;
+        this->calcVelocityAndTheta();
+    }
+}
+
+inline int abs(int num) {
+    if (num > 0) {
+        return num;
+    } else {
+        return -num;
     }
 }
 
 void Robot::calcSpeed() {
     std::vector<double> speed(3);
-    int secDiff = this->nextCount[3] - this->prevCount[3] + TIM_MAX;
+    int secDiff = this->nextCount[3] - this->prevCount[3];
+    if (secDiff >= 0) {
+        secDiff += TIM_MAX;
+    } else if (-secDiff > TIM_MAX / 2) {
+        secDiff += TIM_MAX * 2;
+    } else {
+        secDiff += TIM_MAX;
+    }
     double second = secDiff / 84.0 / 100000.0;
     for (int i = 0; i < 3; i++) {
         int diff = this->nextCount[i] - this->prevCount[i];
-        if (diff <= 0) {
-            diff += TIM_MAX;
-            speed[i] = diff / COUNT_PER_ROTATE * 2 * 3.1415 * WHEEL_RADIUS / second;
+        // jump
+        if (abs(diff) > TIM_MAX / 2) {
+            if (diff < 0){
+                diff = TIM_MAX - diff;
+            } else {
+                diff = -(TIM_MAX + diff);
+            }
         }
+        speed[i] = (double)diff / (double)COUNT_PER_ROTATE * 2.0 * 3.1415 * (double)WHEEL_RADIUS / second;
     }
+    this->robotInfo.secDiff = second;
     this->robotInfo.wheelVelocity = speed;
 }
 
-void Robot::setCount(std::string response) {
-    vector<string> elems;
-    string item;
+void Robot::setCount(std::string& response) {
+    std::vector<std::string> elems;
+    std::string item;
     for (char ch: response) {
         if (ch == ',') {
             if (!item.empty())
@@ -109,7 +142,20 @@ void Robot::writeDuty() {
     this->mySerial->write(s);
 }
 
-void Robot::setDuty(const std::vector<int> vec) {
+void Robot::calcVelocityAndTheta() {
+    std::vector<double> ans(3);
+    for (int i = 0; i < 3; i++) {
+        ans[i] = 0;
+        for (int j = 0; j < 3; j++) {
+            ans[i] += gMatrix[i][j] * this->robotInfo.wheelVelocity[j];
+        }
+    }
+    std::cout << ans[2] << std::endl;
+    this->robotInfo.selfCorVelocity = ans;
+    this->robotInfo.theta += ans[2] * this->robotInfo.secDiff;
+}
+
+void Robot::setDuty(const std::vector<int>& vec) {
     this->targetDuty = vec;
 }
 
