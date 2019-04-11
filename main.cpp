@@ -3,5 +3,6 @@
 
 int main() {
     Robot r = Robot();
+    r.setDuty({})
     return 0;
 }

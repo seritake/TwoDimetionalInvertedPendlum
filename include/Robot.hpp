@@ -30,6 +30,7 @@ private:
     void writeDuty();
     void calcSpeed();
     void calcVelocityAndTheta();
+    void calcWorldVelocity();
     void setCount(std::string& response);
 
 public:
