@@ -42,6 +42,7 @@ Robot::Robot() {
     this->prevCount = {0,0,0,0};
     this->mySerial = new serial::Serial("/dev/ttyACM0", 115200, serial::Timeout::simpleTimeout(1000));
     std::thread th(&Robot::communicate, this);
+    th.detach();
 }
 
 Robot::Robot(std::string& portPath) {
@@ -53,29 +54,16 @@ Robot::Robot(std::string& portPath) {
 
 
 void Robot::communicate() {
-    int i = 0;
-    int delta = 15;
     std::string result;
     while(true) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         this->writeDuty();
         result = this->mySerial->readline(24, "\n");
-        i += delta;
-        this->setDuty({i,i,i});
-        if (i > 600) {
-            delta = -15;
-        } else if (i < -600) {
-            delta = 15;
-        }
         this->setCount(result);
         this->calcSpeed();
         this->calcVelocityAndTheta();
         this->calcWorldVelocity();
         this->calcPosition();
-        /*std::cout << (float)this->robotInfo.robotVelocity[0] << ", " << (float)this->robotInfo.robotVelocity[1]
-        << ", " << (float)this->robotInfo.robotVelocity[2] << ", " << (float)this->robotInfo.theta << std::endl;*/
-        /*std::cout << (float)this->robotInfo.position[0] << ",\t" << (float)this->robotInfo.position[1]
-             << ",\t" << (float)this->robotInfo.position[2]<< std::endl;*/
     }
 }
 
