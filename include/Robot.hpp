@@ -19,11 +19,11 @@ private:
     std::vector<int> nextCount;
     struct RobotInfo {
         double theta;
-        double omega;
         double secDiff;
         std::vector<double> wheelVelocity;
         std::vector<double> robotVelocity;
         std::vector<double> selfCorVelocity;
+        std::vector<double> position;
     } robotInfo;
     void updateRobotInfo() const;
     void communicate();
@@ -31,6 +31,7 @@ private:
     void calcSpeed();
     void calcVelocityAndTheta();
     void calcWorldVelocity();
+    void calcPosition();
     void setCount(std::string& response);
 
 public:
@@ -38,6 +39,8 @@ public:
     Robot(std::string& portPath);
     bool getConnected() const;
     void setDuty(const std::vector<int>& vec);
+    const std::vector<double>& getVelocity() const;
+    const std::vector<double>& getPosition() const;
 };
 
 

@@ -32,7 +32,7 @@ Robot::Robot() {
     this->robotInfo = {
             0,
             0,
-            0,
+            {0,0,0},
             {0,0,0},
             {0,0,0},
             {0,0,0},
@@ -42,7 +42,6 @@ Robot::Robot() {
     this->prevCount = {0,0,0,0};
     this->mySerial = new serial::Serial("/dev/ttyACM0", 115200, serial::Timeout::simpleTimeout(1000));
     std::thread th(&Robot::communicate, this);
-    sleep(300);
 }
 
 Robot::Robot(std::string& portPath) {
@@ -53,9 +52,7 @@ Robot::Robot(std::string& portPath) {
 }
 
 
-void Robot::communicate() {                    //      ファイル読み込み用ストリームオブジェクト fin の定義
-    std::ofstream fout;
-    fout.open("log.csv");
+void Robot::communicate() {
     int i = 0;
     int delta = 15;
     std::string result;
@@ -74,11 +71,11 @@ void Robot::communicate() {                    //      ファイル読み込み�
         this->calcSpeed();
         this->calcVelocityAndTheta();
         this->calcWorldVelocity();
+        this->calcPosition();
         /*std::cout << (float)this->robotInfo.robotVelocity[0] << ", " << (float)this->robotInfo.robotVelocity[1]
         << ", " << (float)this->robotInfo.robotVelocity[2] << ", " << (float)this->robotInfo.theta << std::endl;*/
-        /*std::cout << (float)this->robotInfo.selfCorVelocity[0] << ",\t" << (float)this->robotInfo.selfCorVelocity[1]
-             << ",\t" << (float)this->robotInfo.selfCorVelocity[2] << ",\t" << (float)this->robotInfo.theta  << std::endl;*/
-        //fout << (float)this->robotInfo.secDiff << std::endl;
+        /*std::cout << (float)this->robotInfo.position[0] << ",\t" << (float)this->robotInfo.position[1]
+             << ",\t" << (float)this->robotInfo.position[2]<< std::endl;*/
     }
 }
 
@@ -103,7 +100,6 @@ void Robot::calcSpeed() {
     double second = secDiff / 84.0 / 100000.0;
     for (int i = 0; i < 3; i++) {
         int diff = this->nextCount[i] - this->prevCount[i];
-        // jump
         if (abs(diff) > TIM_MAX / 2) {
             if (diff > 0){
                 diff = -(TIM_MAX - diff);
@@ -179,8 +175,24 @@ void Robot::calcWorldVelocity() {
     this->robotInfo.robotVelocity = ans;
 }
 
+void Robot::calcPosition() {
+    std::vector<double> ans(3);
+    for (int i = 0; i < 3; i++) {
+        ans[i] = this->robotInfo.robotVelocity[i] * this->robotInfo.secDiff + this->robotInfo.position[i];
+    }
+    this->robotInfo.position = ans;
+}
+
 void Robot::setDuty(const std::vector<int>& vec) {
     this->targetDuty = vec;
+}
+
+const std::vector<double>& Robot::getVelocity() const {
+    return this->robotInfo.robotVelocity;
+}
+
+const std::vector<double>& Robot::getPosition() const {
+    return this->robotInfo.position;
 }
 
 bool Robot::getConnected() const {
