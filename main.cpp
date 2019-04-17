@@ -2,8 +2,8 @@
 #include "include/Robot.hpp"
 #include <unistd.h>
 #include <stdio.h>
-#include <bits/stdc++.h>
-#include <eigen3/Eigen/Dense>
+#include <cmath>
+#include <Eigen/Dense>
 #include "vector"
 
 using namespace std;
@@ -78,7 +78,7 @@ T psi(T alpha, T i_p){
  * @return (u): This is the value of the voltage to three servo motors.
  */
 
-void voltCalculator(int *duty_ratio, vector<double>& angle, vector<double>& x, vector<double>& v, double phi, double v_phi){
+void voltCalculator(vector<int>& duty_ratio, vector<double>& angle, vector<double>& x, vector<double>& v, double phi, double v_phi){
 	Vector3d volt;
 	double d_angle[2] = {0, 0};
 	double y_x, d_y_x, dd_y_x;
@@ -123,7 +123,7 @@ void voltCalculator(int *duty_ratio, vector<double>& angle, vector<double>& x, v
 
     //change the vlotage to DT ratio.
     for(int i=0; i<= 2; i++){
-        duty_ratio[i] = int(u * DUTY_MULTI);
+        duty_ratio[i] = int(u(i) * DUTY_MULTI);
     }
 }
 
@@ -131,10 +131,10 @@ void voltCalculator(int *duty_ratio, vector<double>& angle, vector<double>& x, v
 int main() {
     Robot r = Robot();
 
-    int duty_ratio[3];
     std::vector<double> position(3);
     std::vector<double> velocity(3);
     std::vector<double> angles(2);
+    std::vector<int> duty_ratio(3);
     
     while(true) {
         usleep(30000);
@@ -144,7 +144,7 @@ int main() {
         //Here get angles.
         //angles = 
         
-        voltCalculator(int *duty_ratio, angles, position, velocity, position[2], velocity[2])
+        voltCalculator(duty_ratio, angles, position, velocity, position[2], velocity[2]);
         
         for(int i=0; i <= 2 ; i++){
             if(duty_ratio[i] >= 800 || duty_ratio[i] <= -800){
