@@ -1,5 +1,6 @@
 #include <iostream>
 #include "include/Robot.hpp"
+#include "src/trackModule/cameraHandler.hpp"
 #include <unistd.h>
 #include <stdio.h>
 #include <cmath>
@@ -130,6 +131,10 @@ void voltCalculator(vector<int>& duty_ratio, vector<double>& angle, vector<doubl
 
 int main() {
     Robot r = Robot();
+	vector<int> cameraList = {0,1};//cameraID 0 & 1
+    vector<double> cameraAngle = {56,56};//camera's angle of view. specify for 2 cameras
+    CameraHandler cameraHandler = CameraHandler(cameraList,cameraAngle);
+
 
     std::vector<double> position(3);
     std::vector<double> velocity(3);
@@ -142,7 +147,7 @@ int main() {
         position = r.getPosition();
         velocity = r.getVelocity();
         //Here get angles.
-        //angles = 
+        angles = CameraHandler.getAngles();
         
         voltCalculator(duty_ratio, angles, position, velocity, position[2], velocity[2]);
         
