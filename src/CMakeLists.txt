@@ -6,6 +6,11 @@ add_library(Robot STATIC
         impl/list_ports/list_ports_osx.cc
         trackModule/colorTracker.cpp
         )
+
+find_package(OpenCV REQUIRED)
+
+# インクルードパスを指定
+include_directories(${OpenCV_INCLUDE_DIRS})
 target_include_directories(Robot
         PUBLIC ${PROJECT_SOURCE_DIR}/include
         )

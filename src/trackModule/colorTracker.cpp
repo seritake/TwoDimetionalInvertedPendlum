@@ -137,7 +137,7 @@ Point2d ColorTracker::predictShow(const colorRange& range) noexcept(false){
     }
 
     cv::imshow("predictShow camera: " + to_string(this->cameraId),img);
-    cv::waitKey(1);
+    cv::waitKey(1000);
     
     if(failflag){
         throw ProcessingException(WHERE + "any contour has not been detected");

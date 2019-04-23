@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <cmath>
-#include <Eigen/Dense>
+#include <eigen3/Eigen/Dense>
 #include "vector"
 
 using namespace std;
@@ -84,55 +84,62 @@ void voltCalculator(vector<int>& duty_ratio, vector<double>& angle, vector<doubl
 	double d_angle[2] = {0, 0};
 	double y_x, d_y_x, dd_y_x;
 	double x_y, d_x_y, dd_x_y;
-	double s_0[2], s_1[2], d_s_1[0];
+	double s_0[2], s_1[2], d_s_1[2];
 	Vector3d u, f;
 	Matrix3d A;
 
-	double I_pxx = I_p*sin(angle[0]), I_pyy = I_p*sin(angle[1]), I_pzz = 1/12*m*(l*sqrt(sin(angle[0])*sin(angle[0]) + sin(angle[1])*sin(angle[1])))*(l*sqrt(sin(angle[0])*sin(angle[0]) + sin(angle[1])*sin(angle[1]))); //(kg/m^{2}): moment of inertia of the pendulum about the X-, Y-, Z-axis, respectively.
+	double I_pxx = I_p*sin(angle[0]), I_pyy = I_p*sin(angle[1]); //I_pzz = 1/12*m*(l*sqrt(sin(angle[0])*sin(angle[0]) + sin(angle[1])*sin(angle[1])))*(l*sqrt(sin(angle[0])*sin(angle[0]) + sin(angle[1])*sin(angle[1]))); //(kg/m^{2}): moment of inertia of the pendulum about the X-, Y-, Z-axis, respectively.
 	y_x = x[0] - psi(angle[0], I_pyy);
 	x_y = x[1] - psi(angle[1], I_pxx);
+	cout << '1' << endl;
 
 	d_y_x = v[0] + (m*l*l + I_pyy) / (m*l*cos(angle[0])) * d_angle[0]; 
 	d_x_y = v[1] + (m*l*l + I_pxx) / (m*l*cos(angle[1])) * d_angle[1];
 
+	cout << '2' << endl;
 	dd_y_x = G_func(angle[0], d_angle[0], I_pyy) * tan(angle[0]);
 	dd_x_y = G_func(angle[1], d_angle[1], I_pxx) * tan(angle[1]);
 	
 	s_1[0] = tan(angle[0]) + delta_1*(y_x + d_y_x);
 	s_1[1] = tan(angle[1]) + delta_1*(x_y + d_x_y);
-
+	cout << '3' << endl;
 	d_s_1[0] = 1/(cos(angle[0])*cos(angle[0])) + delta_1 * (d_y_x + dd_y_x);
 	d_s_1[1] = 1/(cos(angle[1])*cos(angle[1])) + delta_1 * (d_x_y + dd_x_y);
-	
+	cout << '4' << endl;
 	s_0[0] = cos(angle[0])*cos(angle[0])*d_s_1[0] + delta+s_1[0];
 	s_0[1] = cos(angle[1])*cos(angle[1])*d_s_1[1] + delta+s_1[1];
 
 	f(0) = 1/(m*l*cos(angle[0])) * ( ( (m+M)*(m*l*l+I_pyy)-m*m*l*l*cos(angle[0])*cos(angle[0]) )*(nu_0*saturate(s_0[0]*cap_psi(angle[0], d_angle[0], I_pyy),-1.0,1.0)) - (m*m*l*l*d_angle[0]*d_angle[0])*sin(angle[0])*cos(angle[0]) + (m+M)*m*g*l*sin(angle[0]) );
 	
 	f(1) = 1/(m*l*cos(angle[1])) * ( ( (m+M)*(m*l*l+I_pxx)-m*m*l*l*cos(angle[1])*cos(angle[1]) )*(nu_0*saturate(s_0[1]*cap_psi(angle[1], d_angle[1], I_pxx),-1.0,1.0)) - (m*m*l*l*d_angle[1]*d_angle[1])*sin(angle[1])*cos(angle[1]) + (m+M)*m*g*l*sin(angle[1]) );
-	
+
+	cout << '5' << endl;
 	f(0) = f(0)/M_t - a[0]*v[0];
 	f(1) = f(1)/M_t - a[0]*v[1];
 
+	cout << '6' << endl;
 	f(2) = (-k_phi[0]*v_phi - a[1]*v_phi - k_phi[1]*phi)/(3*b[1]);
 
+	cout << '7' << endl;
 	A << cos(phi)/(3*b[0])                     ,sin(phi)/(3*b[0])                     , 1,
 	     (-sqrt(3)*sin(phi)-cos(phi))/(6*b[0]) ,(-sqrt(3)*cos(phi)+sin(phi))/(6*b[0]) , 1,
 		 (-sqrt(3)*sin(phi)+cos(phi))/(6*b[0]) ,(-sqrt(3)*cos(phi)-sin(phi))/(6*b[0]) , 1;
 	
 	u = A * f;
 
+	cout << '8' << endl;
     //change the vlotage to DT ratio.
     for(int i=0; i<= 2; i++){
         duty_ratio[i] = int(u(i) * DUTY_MULTI);
     }
+    cout << '9' << endl;
 }
 
 
 int main() {
     Robot r = Robot();
-	vector<int> cameraList = {0,1};//cameraID 0 & 1
-    vector<double> cameraAngle = {56,56};//camera's angle of view. specify for 2 cameras
+	vector<int> cameraList = {1,2};//cameraID 0 & 1
+    vector<double> cameraAngle = {56, 56};//camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList,cameraAngle);
 
 
@@ -147,8 +154,8 @@ int main() {
         position = r.getPosition();
         velocity = r.getVelocity();
         //Here get angles.
-        angles = CameraHandler.getAngles();
-        
+        angles = cameraHandler.getAngles();
+        cout << angles[0] << endl;
         voltCalculator(duty_ratio, angles, position, velocity, position[2], velocity[2]);
         
         for(int i=0; i <= 2 ; i++){

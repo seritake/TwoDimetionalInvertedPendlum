@@ -35,14 +35,14 @@ CameraHandler::CameraHandler(const vector<int> cameraList,const vector<double> c
     }
 
     this->angles = cameraAngle;
-
 }
 
 vector<double> CameraHandler::getAngles(){
+
     vector<future<Point2d>> futures;
     for(auto i=0;i < this->colorTrackers.size();i++){
         futures.push_back(
-           async( std::launch::async ,&ColorTracker::predict,&(this->colorTrackers[i]),rangeRed)
+           async( std::launch::async ,&ColorTracker::predict,&(this->colorTrackers[i]),rangeGreen)
         );
     }
 
@@ -55,6 +55,7 @@ vector<double> CameraHandler::getAngles(){
 
             result.push_back((point.x - width/2) * (this->angles[i]) / (width));
         } catch (exception& e){
+            //cout << e.what() << endl;
             result.push_back(0);
         }
     }

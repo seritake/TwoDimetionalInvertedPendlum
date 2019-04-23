@@ -19,6 +19,14 @@ include_directories(${Eigen_INCLUDE_DIR})
 
 add_subdirectory(src)
 add_executable(Main main.cpp)
+
+find_package(OpenCV REQUIRED)
+
+# インクルードパスを指定
+include_directories(${OpenCV_INCLUDE_DIRS})
+
+# リンクするライブラリ指定
+target_link_libraries(Main ${OpenCV_LIBS})
 include_directories(include)
 #include_directories(/usr/local/include/eigen3)
 find_package (Threads)
