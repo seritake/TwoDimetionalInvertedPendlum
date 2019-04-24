@@ -2,6 +2,7 @@
 #include "include/Robot.hpp"
 #include "src/trackModule/cameraHandler.hpp"
 #include <unistd.h>
+#include <chrono>
 #include <stdio.h>
 #include <cmath>
 #include <eigen3/Eigen/Dense>
@@ -79,9 +80,9 @@ T psi(T alpha, T i_p){
  * @return (u): This is the value of the voltage to three servo motors.
  */
 
-void voltCalculator(vector<int>& duty_ratio, vector<double>& angle, vector<double>& x, vector<double>& v, double phi, double v_phi){
+void voltCalculator(vector<int>& duty_ratio, vector<double>& angle, vector<double>& d_angle, vector<double>& x, vector<double>& v, double phi, double v_phi){
 	Vector3d volt;
-	double d_angle[2] = {0, 0};
+	//double d_angle[2] = {0, 0};
 	double y_x, d_y_x, dd_y_x;
 	double x_y, d_x_y, dd_x_y;
 	double s_0[2], s_1[2], d_s_1[2];
@@ -142,21 +143,33 @@ int main() {
     vector<double> cameraAngle = {56, 56};//camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList,cameraAngle);
 
+	std::chrono::system_clock::time_point  pre_time, now_time;
+	pre_time = std::chrono::system_clock::now();
 
     std::vector<double> position(3);
     std::vector<double> velocity(3);
     std::vector<double> angles(2);
+	std::vector<double> pre_angles{0.0, 0.0};
+	std::vector<double> d_angles(2);
     std::vector<int> duty_ratio(3);
     
     while(true) {
         usleep(30000);
-
         position = r.getPosition();
         velocity = r.getVelocity();
         //Here get angles.
         angles = cameraHandler.getAngles();
+		now_time = std::chrono::system_clock::now();
+		
+		double elapsed = std::chrono::duration_cast<std::chrono::seconds>(now_time-pre_time).count();
+		for(int i=0;i<2;i++){
+			d_angles[i] = (angles[i]-pre_angles[i])/elapsed;
+			pre_angles[i] = angles[i];
+			pre_time = now_time;
+		}
+
         cout << angles[0] << endl;
-        voltCalculator(duty_ratio, angles, position, velocity, position[2], velocity[2]);
+        voltCalculator(duty_ratio, angles, d_angles, position, velocity, position[2], velocity[2]);
         
         for(int i=0; i <= 2 ; i++){
             if(duty_ratio[i] >= 800 || duty_ratio[i] <= -800){
