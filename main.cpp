@@ -39,12 +39,12 @@ const static int DUTY_MX = 839;
 const static double DUTY_MULTI = 15/DUTY_MX;
 
 //control
-const static double nu_0 = 0; //need to be calculated.
+const static double nu_0 = 2.2; //need to be calculated.
 const static double delta = 0.5;
-const static double delta_1 = 1/9; //need to be calculated.
+const static double delta_1 = 0.12; //need to be calculated.
 const static double a[2] = {-3*K_t*K_t/(2*R_w*R_w*M_t*R_a), -3*K_t*K_t*L_c*L_c/(R_w*R_w*I_z*R_a)};
 const static double b[2] = {K_t/(2*R_w*M_t*R_a), K_t*L_c/(R_w*I_z*R_a)};
-const static double k_phi[2] = {1,1}; //need to be changed.
+const static double k_phi[2] = {0.5,0.5}; //need to be changed.
 
 template<typename T>
 T saturate(T val, T mn, T mx){
@@ -82,7 +82,6 @@ T psi(T alpha, T i_p){
 
 void voltCalculator(vector<int>& duty_ratio, vector<double>& angle, vector<double>& d_angle, vector<double>& x, vector<double>& v, double phi, double v_phi){
 	Vector3d volt;
-	//double d_angle[2] = {0, 0};
 	double y_x, d_y_x, dd_y_x;
 	double x_y, d_x_y, dd_x_y;
 	double s_0[2], s_1[2], d_s_1[2];
@@ -92,21 +91,19 @@ void voltCalculator(vector<int>& duty_ratio, vector<double>& angle, vector<doubl
 	double I_pxx = I_p*sin(angle[0]), I_pyy = I_p*sin(angle[1]); //I_pzz = 1/12*m*(l*sqrt(sin(angle[0])*sin(angle[0]) + sin(angle[1])*sin(angle[1])))*(l*sqrt(sin(angle[0])*sin(angle[0]) + sin(angle[1])*sin(angle[1]))); //(kg/m^{2}): moment of inertia of the pendulum about the X-, Y-, Z-axis, respectively.
 	y_x = x[0] - psi(angle[0], I_pyy);
 	x_y = x[1] - psi(angle[1], I_pxx);
-	cout << '1' << endl;
 
 	d_y_x = v[0] + (m*l*l + I_pyy) / (m*l*cos(angle[0])) * d_angle[0]; 
 	d_x_y = v[1] + (m*l*l + I_pxx) / (m*l*cos(angle[1])) * d_angle[1];
 
-	cout << '2' << endl;
 	dd_y_x = G_func(angle[0], d_angle[0], I_pyy) * tan(angle[0]);
 	dd_x_y = G_func(angle[1], d_angle[1], I_pxx) * tan(angle[1]);
 	
 	s_1[0] = tan(angle[0]) + delta_1*(y_x + d_y_x);
 	s_1[1] = tan(angle[1]) + delta_1*(x_y + d_x_y);
-	cout << '3' << endl;
+	
 	d_s_1[0] = 1/(cos(angle[0])*cos(angle[0])) + delta_1 * (d_y_x + dd_y_x);
 	d_s_1[1] = 1/(cos(angle[1])*cos(angle[1])) + delta_1 * (d_x_y + dd_x_y);
-	cout << '4' << endl;
+	
 	s_0[0] = cos(angle[0])*cos(angle[0])*d_s_1[0] + delta+s_1[0];
 	s_0[1] = cos(angle[1])*cos(angle[1])*d_s_1[1] + delta+s_1[1];
 
@@ -114,26 +111,21 @@ void voltCalculator(vector<int>& duty_ratio, vector<double>& angle, vector<doubl
 	
 	f(1) = 1/(m*l*cos(angle[1])) * ( ( (m+M)*(m*l*l+I_pxx)-m*m*l*l*cos(angle[1])*cos(angle[1]) )*(nu_0*saturate(s_0[1]*cap_psi(angle[1], d_angle[1], I_pxx),-1.0,1.0)) - (m*m*l*l*d_angle[1]*d_angle[1])*sin(angle[1])*cos(angle[1]) + (m+M)*m*g*l*sin(angle[1]) );
 
-	cout << '5' << endl;
 	f(0) = f(0)/M_t - a[0]*v[0];
 	f(1) = f(1)/M_t - a[0]*v[1];
 
-	cout << '6' << endl;
 	f(2) = (-k_phi[0]*v_phi - a[1]*v_phi - k_phi[1]*phi)/(3*b[1]);
 
-	cout << '7' << endl;
 	A << cos(phi)/(3*b[0])                     ,sin(phi)/(3*b[0])                     , 1,
 	     (-sqrt(3)*sin(phi)-cos(phi))/(6*b[0]) ,(-sqrt(3)*cos(phi)+sin(phi))/(6*b[0]) , 1,
 		 (-sqrt(3)*sin(phi)+cos(phi))/(6*b[0]) ,(-sqrt(3)*cos(phi)-sin(phi))/(6*b[0]) , 1;
 	
 	u = A * f;
 
-	cout << '8' << endl;
     //change the vlotage to DT ratio.
     for(int i=0; i<= 2; i++){
         duty_ratio[i] = int(u(i) * DUTY_MULTI);
     }
-    cout << '9' << endl;
 }
 
 
