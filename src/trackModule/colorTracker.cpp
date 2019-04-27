@@ -129,9 +129,9 @@ Point2d ColorTracker::predictShow(const colorRange& range) noexcept(false){
         
         temp.push_back(contour);
         cv::drawContours(img,temp,0,cv::Scalar(0,255,0),5);
-        cv::putText(img,"x: " + to_string(getCenterPoint(contour).x - img.cols/2),cv::Point(10,100),cv::FONT_HERSHEY_SIMPLEX,1.2,cv::Scalar(0,0,255),2);
+        cv::putText(img,"x: " + to_string(getCenterPoint(contour).x),cv::Point(10,100),cv::FONT_HERSHEY_SIMPLEX,1.2,cv::Scalar(0,0,255),2);
 
-    } catch(ProcessingException e){;
+    } catch(ProcessingException e){
         cv::putText(img,"Not detected",cv::Point(10,100),cv::FONT_HERSHEY_SIMPLEX,1.2,cv::Scalar(0,255,0),2);
         failflag = true;
     }

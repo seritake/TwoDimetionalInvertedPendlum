@@ -8,6 +8,11 @@
 #include <eigen3/Eigen/Dense>
 #include "vector"
 
+// For debug
+#define PRINT_MAT(X) cout << #X << ":\n" << X << endl << endl
+#define PRINT_MAT2(X,DESC) cout << DESC << ":\n" << X << endl << endl
+#define PRINT_FNC    cout << "[" << __func__ << "]" << endl
+
 using namespace std;
 using namespace Eigen;
 
@@ -119,9 +124,12 @@ void voltCalculator(vector<int>& duty_ratio, vector<double>& angle, vector<doubl
 	A << cos(phi)/(3*b[0])                     ,sin(phi)/(3*b[0])                     , 1,
 	     (-sqrt(3)*sin(phi)-cos(phi))/(6*b[0]) ,(-sqrt(3)*cos(phi)+sin(phi))/(6*b[0]) , 1,
 		 (-sqrt(3)*sin(phi)+cos(phi))/(6*b[0]) ,(-sqrt(3)*cos(phi)-sin(phi))/(6*b[0]) , 1;
-	
+
+	PRINT_MAT(f);
+
 	u = A * f;
 
+	cout << u(0) << endl;
     //change the vlotage to DT ratio.
     for(int i=0; i<= 2; i++){
         duty_ratio[i] = int(u(i) * DUTY_MULTI);
@@ -131,7 +139,7 @@ void voltCalculator(vector<int>& duty_ratio, vector<double>& angle, vector<doubl
 
 int main() {
     Robot r = Robot();
-	vector<int> cameraList = {1,2};//camerID 0 & 1
+	vector<int> cameraList = {2,1};//camerID 0 & 1
     vector<double> cameraAngle = {56, 56}; //camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList,cameraAngle);
 
@@ -146,23 +154,23 @@ int main() {
     std::vector<int> duty_ratio(3);
     
     while(true) {
-        usleep(30000);
         position = r.getPosition();
         velocity = r.getVelocity();
         //Here get angles.
         angles = cameraHandler.getAngles();
-		    now_time = std::chrono::system_clock::now();
+        now_time = std::chrono::system_clock::now();
 		  
-		    double elapsed = std::chrono::duration_cast<std::chrono::seconds>(now_time-pre_time).count();
-		    for(int i=0;i<2;i++){
-			    d_angles[i] = (angles[i]-pre_angles[i])/elapsed;
-			    pre_angles[i] = angles[i];
-			    pre_time = now_time;
-		    }
+        double elapsed = std::chrono::duration_cast<std::chrono::seconds>(now_time-pre_time).count();
+        for(int i=0;i<2;i++){
+            d_angles[i] = (angles[i]-pre_angles[i])/elapsed;
+            pre_angles[i] = angles[i];
+            pre_time = now_time;
+        }
 
-        cout << angles[0] << endl;
+        //cout << angles[0] << "\t" << angles[1] << endl;
         voltCalculator(duty_ratio, angles, d_angles, position, velocity, position[2], velocity[2]);
-        
+
+        //cout << duty_ratio[0] << "\t" << duty_ratio[1] << "\t" << duty_ratio[2] << endl;
         /*for(int i=0; i <= 2 ; i++){
             if(duty_ratio[i] >= 800 || duty_ratio[i] <= -800){
                 cout << "DT Ratio is out of range.\n";
