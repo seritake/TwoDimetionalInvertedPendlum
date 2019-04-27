@@ -156,11 +156,11 @@ int main() {
 	struct timeval pre_time, now_time;
 	gettimeofday(&pre_time, NULL);
 
-    std::vector<double> position{0.05,0.02,0.0} ;
-    std::vector<double> velocity{0.5,0.5,0.4};
-    std::vector<double> angles{0.2, 0.12};
-	std::vector<double> pre_angles{0.7, 0.5};
-	std::vector<double> d_angles{0.0, 0.0};
+    std::vector<double> position(3) ;
+    std::vector<double> velocity(3);
+    std::vector<double> angles(2);
+	std::vector<double> pre_angles{0.0,0.0};
+	std::vector<double> d_angles(2);
     std::vector<int> duty_ratio(3);
     
     while(true) {
