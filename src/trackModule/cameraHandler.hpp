@@ -4,6 +4,23 @@
 #include <future>
 #include <exception>
 #include "colorTracker.hpp"
+#include <cmath>
+#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/LU>
+#include "vector"
+
+#define FOCUS 440
+#define CENTER_X 160
+#define CENTER_Y 120
+#define ROBOT_RADIUS 10
+
+// For debug
+#define PRINT_MAT(X) cout << #X << ":\n" << X << endl << endl
+#define PRINT_MAT2(X,DESC) cout << DESC << ":\n" << X << endl << endl
+#define PRINT_FNC    cout << "[" << __func__ << "]" << endl
+
+using namespace Eigen;
+
 
 using std::vector;
 using std::cout;
@@ -12,6 +29,7 @@ using std::exception;
 using std::future;
 using std::async;
 using cv::Point2d;
+using namespace Eigen;
 
 //this class is not for general use.
 class CameraHandler{
@@ -34,19 +52,25 @@ CameraHandler::CameraHandler(const vector<int> cameraList,const vector<double> c
 }
 
 vector<double> CameraHandler::getAngles(){
-    vector<double> result;
+    Matrix<double, 4, 3> B;
+    Vector4d b;
+    b << 0, -FOCUS * ROBOT_RADIUS, 0, -FOCUS * ROBOT_RADIUS;
+    vector<Point2d> points(2);
     for (auto i = 0; i < this->colorTrackers.capacity(); i++) {
         try {
-            auto point = this->colorTrackers[i].predictShow(rangeRed);
-            auto width = this->colorTrackers[i].getWidth();
-            //if (i == 0) cout << point.x << endl;
-            result.push_back((point.x - width/2) * (this->angles[i]) / (width));
+            points[i] = this->colorTrackers[i].predict(rangeRed);
+            //cout << points[i].x << "\t" << points[i].y << i << endl;
         } catch (exception& e){
-            cout << e.what() << endl;
-            result.push_back(0);
+            return {0,0};
         }
     }
-
+    B << 0, -FOCUS, -CENTER_X + points[0].x,
+            FOCUS, 0, -CENTER_Y + points[0].y,
+            1.73205/2*FOCUS, 0.5 * FOCUS, -CENTER_X + points[1].x,
+            - 0.5 * FOCUS, 1.73205 / 2 * FOCUS, -CENTER_Y + points[1].y;
+    FullPivLU< Matrix3d > lu(B.transpose() * B);
+    Vector3d x = lu.solve(-B.transpose() * b);
+    //PRINT_MAT(x);
 
     /*vector<future<Point2d>> futures;
     for(auto i=0;i < this->colorTrackers.size();i++){
@@ -68,6 +92,5 @@ vector<double> CameraHandler::getAngles(){
             result.push_back(0);
         }
     }*/
-
-    return result;
+    return {std::atan(x[1] / x[2]), std::atan(x[0] / x[2])};
 }

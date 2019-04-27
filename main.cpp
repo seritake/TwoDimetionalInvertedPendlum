@@ -10,6 +10,11 @@
 #include <eigen3/Eigen/Dense>
 #include "vector"
 
+// For debug
+#define PRINT_MAT(X) cout << #X << ":\n" << X << endl << endl
+#define PRINT_MAT2(X,DESC) cout << DESC << ":\n" << X << endl << endl
+#define PRINT_FNC    cout << "[" << __func__ << "]" << endl
+
 using namespace std;
 using namespace Eigen;
 
@@ -126,17 +131,13 @@ void voltCalculator(vector<int>& duty_ratio, vector<double>& angle, vector<doubl
 
 	f(2) = (-k_phi[0]*v[2] - a[1]*v[2] - k_phi[1]*x[2])/(3*b[1]);
 
-	//cout << "f(2) = " << f(2) ;
-
-	//cout << "FORTH:" <<  f(0) << '\t' << f(1) << '\t' << f(2) << endl;
-
 	A << cos(x[2])/(3*b[0])                     ,sin(x[2])/(3*b[0])                     , 1.0,
 	     (-sqrt(3)*sin(x[2])-cos(x[2]))/(6*b[0]) ,(sqrt(3)*cos(x[2])-sin(x[2]))/(6*b[0]) , 1.0,
 		 (-sqrt(3)*sin(x[2])+cos(x[2]))/(6*b[0]) ,(-sqrt(3)*cos(x[2])-sin(x[2]))/(6*b[0]) , 1.0;
-	
 	u = A * f;
 	cout << "FORTH:" <<  u(0) << '\t' << u(1) << '\t' << u(2) << endl;
 
+	cout << u(0) << endl;
     //change the vlotage to DT ratio.
     for(int i=0; i<= 2; i++){
 		cout << u(i)* DUTY_MULTI << endl;
@@ -146,9 +147,8 @@ void voltCalculator(vector<int>& duty_ratio, vector<double>& angle, vector<doubl
 
 
 int main() {
-    
-	Robot r = Robot();
-	vector<int> cameraList = {1,2};//camerID 0 & 1
+    Robot r = Robot();
+	vector<int> cameraList = {2,1};//camerID 0 & 1
     vector<double> cameraAngle = {56, 56}; //camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList,cameraAngle);
 	
@@ -164,14 +164,10 @@ int main() {
     std::vector<int> duty_ratio(3);
     
     while(true) {
-		
-		//usleep(30000);
         position = r.getPosition();
         velocity = r.getVelocity();
         //Here get angles.
         angles = cameraHandler.getAngles();
-		
-
 		    gettimeofday(&now_time, NULL);
 		  
 		    
@@ -186,7 +182,7 @@ int main() {
         //cout << angles[0] << endl;
         voltCalculator(duty_ratio, angles, d_angles, position, velocity);
     	
-		cout << duty_ratio[0] << '\t' << duty_ratio[1] << '\t' << duty_ratio[2] << endl;	
+		  cout << duty_ratio[0] << '\t' << duty_ratio[1] << '\t' << duty_ratio[2] << endl;	
         /*for(int i=0; i <= 2 ; i++){
             if(duty_ratio[i] >= 800 || duty_ratio[i] <= -800){
                 cout << "DT Ratio is out of range.\n";
