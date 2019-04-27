@@ -25,12 +25,13 @@ using std::vector;
 ColorTracker::ColorTracker(int cameraId) noexcept(false){
     this->cameraId = cameraId;
     this->cap = *new VideoCapture(cameraId);
+    this->cap.set(3,160);
+    this->cap.set(4,120);
 	if (this->cap.isOpened()) {
 		cout << "succeeded to allocate camera: " << this->cameraId << endl;
         this->width = (int) this->cap.get(cv::CAP_PROP_FRAME_WIDTH);
         this->height = (int) this->cap.get(cv::CAP_PROP_FRAME_HEIGHT);
-	}
-	else {
+	} else {
 		cout << "failed to allocate camera: " << this->cameraId << endl;
         this->cap.release();
 		throw CameraException(WHERE + "failed to allocate camera: " + to_string(this->cameraId));
@@ -88,8 +89,7 @@ Mat ColorTracker::getCaptureImage() noexcept(false){
     if(!this->cap.isOpened()){
         cout << "failed to open camera" << endl;
 		throw CameraException(WHERE + "failed to open camera");
-    }
-    else{
+    } else {
         bool ret = this->cap.read(img);
         if(!ret){
             cout << "failed to get frame" << endl;
@@ -131,13 +131,12 @@ Point2d ColorTracker::predictShow(const colorRange& range) noexcept(false){
         cv::drawContours(img,temp,0,cv::Scalar(0,255,0),5);
         cv::putText(img,"x: " + to_string(getCenterPoint(contour).x - img.cols/2),cv::Point(10,100),cv::FONT_HERSHEY_SIMPLEX,1.2,cv::Scalar(0,0,255),2);
 
-    } catch(ProcessingException){
+    } catch(ProcessingException e){;
         cv::putText(img,"Not detected",cv::Point(10,100),cv::FONT_HERSHEY_SIMPLEX,1.2,cv::Scalar(0,255,0),2);
         failflag = true;
     }
-
     cv::imshow("predictShow camera: " + to_string(this->cameraId),img);
-    cv::waitKey(1000);
+    cv::waitKey(1);
     
     if(failflag){
         throw ProcessingException(WHERE + "any contour has not been detected");

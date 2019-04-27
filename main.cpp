@@ -103,7 +103,7 @@ void voltCalculator(vector<int>& duty_ratio, vector<double>& angle, vector<doubl
 	
 	d_s_1[0] = 1/(cos(angle[0])*cos(angle[0])) + delta_1 * (d_y_x + dd_y_x);
 	d_s_1[1] = 1/(cos(angle[1])*cos(angle[1])) + delta_1 * (d_x_y + dd_x_y);
-	
+
 	s_0[0] = cos(angle[0])*cos(angle[0])*d_s_1[0] + delta+s_1[0];
 	s_0[1] = cos(angle[1])*cos(angle[1])*d_s_1[1] + delta+s_1[1];
 
@@ -131,8 +131,8 @@ void voltCalculator(vector<int>& duty_ratio, vector<double>& angle, vector<doubl
 
 int main() {
     Robot r = Robot();
-	vector<int> cameraList = {1,2};//cameraID 0 & 1
-    vector<double> cameraAngle = {56, 56};//camera's angle of view. specify for 2 cameras
+	vector<int> cameraList = {1,2};//camerID 0 & 1
+    vector<double> cameraAngle = {56, 56}; //camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList,cameraAngle);
 
 	std::chrono::system_clock::time_point  pre_time, now_time;
@@ -151,25 +151,25 @@ int main() {
         velocity = r.getVelocity();
         //Here get angles.
         angles = cameraHandler.getAngles();
-		now_time = std::chrono::system_clock::now();
-		
-		double elapsed = std::chrono::duration_cast<std::chrono::seconds>(now_time-pre_time).count();
-		for(int i=0;i<2;i++){
-			d_angles[i] = (angles[i]-pre_angles[i])/elapsed;
-			pre_angles[i] = angles[i];
-			pre_time = now_time;
-		}
+		    now_time = std::chrono::system_clock::now();
+		  
+		    double elapsed = std::chrono::duration_cast<std::chrono::seconds>(now_time-pre_time).count();
+		    for(int i=0;i<2;i++){
+			    d_angles[i] = (angles[i]-pre_angles[i])/elapsed;
+			    pre_angles[i] = angles[i];
+			    pre_time = now_time;
+		    }
 
         cout << angles[0] << endl;
         voltCalculator(duty_ratio, angles, d_angles, position, velocity, position[2], velocity[2]);
         
-        for(int i=0; i <= 2 ; i++){
+        /*for(int i=0; i <= 2 ; i++){
             if(duty_ratio[i] >= 800 || duty_ratio[i] <= -800){
                 cout << "DT Ratio is out of range.\n";
                 duty_ratio[i] = 800 * duty_ratio[i] > 0? 1: -1;
             }
-        }
+        }*/
 
-        r.setDuty(duty_ratio);
+        //r.setDuty(duty_ratio);
     }
 }

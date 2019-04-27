@@ -23,26 +23,35 @@ public:
     CameraHandler(const vector<int> cameraList,const vector<double> cameraAngle) noexcept(false);//throw std::exception
 
     vector<double> getAngles();//throw std::exception
-
-    
-
 };
 
 CameraHandler::CameraHandler(const vector<int> cameraList,const vector<double> cameraAngle){
-
+    this->colorTrackers.reserve(cameraList.size());
     for(int i = 0;i < cameraList.size();i++){
         this->colorTrackers.push_back(*new ColorTracker(cameraList[i]));
     }
-
     this->angles = cameraAngle;
 }
 
 vector<double> CameraHandler::getAngles(){
+    vector<double> result;
+    for (auto i = 0; i < this->colorTrackers.capacity(); i++) {
+        try {
+            auto point = this->colorTrackers[i].predictShow(rangeRed);
+            auto width = this->colorTrackers[i].getWidth();
+            //if (i == 0) cout << point.x << endl;
+            result.push_back((point.x - width/2) * (this->angles[i]) / (width));
+        } catch (exception& e){
+            cout << e.what() << endl;
+            result.push_back(0);
+        }
+    }
 
-    vector<future<Point2d>> futures;
+
+    /*vector<future<Point2d>> futures;
     for(auto i=0;i < this->colorTrackers.size();i++){
         futures.push_back(
-           async( std::launch::async ,&ColorTracker::predict,&(this->colorTrackers[i]),rangeGreen)
+           async( std::launch::async ,&ColorTracker::predict,&(this->colorTrackers[i]),rangeRed)
         );
     }
 
@@ -55,10 +64,10 @@ vector<double> CameraHandler::getAngles(){
 
             result.push_back((point.x - width/2) * (this->angles[i]) / (width));
         } catch (exception& e){
-            //cout << e.what() << endl;
+            cout << e.what() << endl;
             result.push_back(0);
         }
-    }
+    }*/
 
     return result;
 }
