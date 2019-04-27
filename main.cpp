@@ -1,6 +1,6 @@
 #include <iostream>
-//#include "include/Robot.hpp"
-//#include "src/trackModule/cameraHandler.hpp"
+#include "include/Robot.hpp"
+#include "src/trackModule/cameraHandler.hpp"
 #include <unistd.h>
 #include <chrono>
 #include <stdio.h>
@@ -162,34 +162,36 @@ int main() {
 	std::vector<double> pre_angles{0.0,0.0};
 	std::vector<double> d_angles(2);
     std::vector<int> duty_ratio(3);
-    
+    int s;
+    cin >> s;
     while(true) {
+
         position = r.getPosition();
         velocity = r.getVelocity();
         //Here get angles.
         angles = cameraHandler.getAngles();
-		    gettimeofday(&now_time, NULL);
+        gettimeofday(&now_time, NULL);
 		  
 		    
-			double elapsed = (now_time.tv_usec - pre_time.tv_usec) / 1000.0;
-		    for(int i=0;i<2;i++){
-				cout << "elapsed:" << '\t' << elapsed << endl;
-			    d_angles[i] = (angles[i]-pre_angles[i])/elapsed;
-			    pre_angles[i] = angles[i];
-			    pre_time = now_time;
-		    }
+        double elapsed = (now_time.tv_usec - pre_time.tv_usec) / 1000.0;
+        for(int i=0;i<2;i++){
+            cout << "elapsed:" << '\t' << elapsed << endl;
+            d_angles[i] = (angles[i]-pre_angles[i])/elapsed;
+            pre_angles[i] = angles[i];
+            pre_time = now_time;
+        }
 
         //cout << angles[0] << endl;
         voltCalculator(duty_ratio, angles, d_angles, position, velocity);
     	
 		  cout << duty_ratio[0] << '\t' << duty_ratio[1] << '\t' << duty_ratio[2] << endl;	
-        /*for(int i=0; i <= 2 ; i++){
+        for(int i=0; i <= 2 ; i++){
             if(duty_ratio[i] >= 800 || duty_ratio[i] <= -800){
                 cout << "DT Ratio is out of range.\n";
-                duty_ratio[i] = 800 * duty_ratio[i] > 0? 1: -1;
+                duty_ratio[i] = 800 * (duty_ratio[i] > 0? 1: -1);
             }
-        }*/
+        }
 
-        //r.setDuty(duty_ratio);
+        r.setDuty(duty_ratio);
     }
 }
