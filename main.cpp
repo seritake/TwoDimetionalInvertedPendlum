@@ -10,6 +10,12 @@
 #include <eigen3/Eigen/Dense>
 #include "vector"
 #include <signal.h>
+#include <sstream>
+#include <iomanip>
+#include <fstream>
+
+// comment out this line if no logs are needed.
+#define CREATE_LOG
 
 // For debug
 #define PRINT_MAT(X) cout << #X << ":\n" << X << endl << endl
@@ -185,6 +191,18 @@ int main() {
 
     sigaction(SIGINT, &sigIntHandler, NULL);
 
+#ifdef CREATE_LOG
+    // prepare for logs
+    std::ofstream fout;
+    fout.open("../logs/log.csv");
+    fout << "time,robot_position_x,robot_position_y,robot_position_w,robot_velocity_x,robot_velocity_y,robot_velocity_w,";
+    fout << "angle_alpha,angle_beta";
+
+    // todo: add input variables to log target
+
+    struct timeval first_time;
+    bool firstFlag = true;
+#endif
 
     struct timeval pre_time, now_time;
     gettimeofday(&pre_time, NULL);
@@ -197,40 +215,42 @@ int main() {
     std::vector<int> duty_ratio(3);
 
     // expect to become faster when calling this function next time
-    velocity = r.getVelocity();
+    angles = cameraHandler.getAngles();
 
     int wait;
     cout << "waiting for input...";
     cin >> wait;
 
     while (true) {
-
         position = r.getPosition();
         velocity = r.getVelocity();
-        //Here get angles.
         angles = cameraHandler.getAngles();
         gettimeofday(&now_time, NULL);
-
-
         double elapsed = (now_time.tv_usec - pre_time.tv_usec) / 1000.0;
         for (int i = 0; i < 2; i++) {
             cout << "elapsed:" << '\t' << elapsed << endl;
             d_angles[i] = (angles[i] - pre_angles[i]) / elapsed;
             pre_angles[i] = angles[i];
-            pre_time = now_time;
         }
+        pre_time = now_time;
 
-        //cout << angles[0] << endl;
         voltCalculator(duty_ratio, angles, d_angles, position, velocity);
-
-        cout << duty_ratio[0] << '\t' << duty_ratio[1] << '\t' << duty_ratio[2] << endl;
         for (int i = 0; i <= 2; i++) {
             if (duty_ratio[i] >= 800 || duty_ratio[i] <= -800) {
                 cout << "DT Ratio is out of range.\n";
                 duty_ratio[i] = 800 * (duty_ratio[i] > 0 ? 1 : -1);
             }
         }
-
+#ifdef CREATE_LOG
+        if (firstFlag) {
+            first_time = now_time;
+            firstFlag = false;
+        }
+        // using integer timestamp is often convenient when processing log
+        fout << now_time.tv_usec - pre_time.tv_usec << "," << position[0] << "," << position[1] << "," << position[2]
+             << "," << velocity[0] << "," << velocity[1] << "," << velocity[2] << "," << angles[0] << "," << angles[1];
+        // todo: add input variables to log target
+#endif
         r.setDuty(duty_ratio);
     }
 }

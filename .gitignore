@@ -1,1 +1,6 @@
 /.vscode
+/.idea
+/logs
+/build
+/a.out
+
