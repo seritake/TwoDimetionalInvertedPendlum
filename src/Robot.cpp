@@ -47,14 +47,28 @@ Robot::Robot() {
 
 Robot::Robot(std::string& portPath) {
     this->connected = true;
-    this->mySerial = new serial::Serial("/dev/ttyACM0", 115200, serial::Timeout::simpleTimeout(1000));
+    this->robotInfo = {
+            0,
+            0,
+            {0,0,0},
+            {0,0,0},
+            {0,0,0},
+            {0,0,0},
+    };
     this->targetDuty = {0,0,0};
+    this->nextCount = {0,0,0,0};
+    this->prevCount = {0,0,0,0};
+    this->mySerial = new serial::Serial(portPath, 115200, serial::Timeout::simpleTimeout(1000));
     std::thread th(&Robot::communicate, this);
+    th.detach();
 }
 
 
 void Robot::communicate() {
     std::string result;
+    this->writeDuty();
+    result = this->mySerial->readline(24, "\n");
+    this->setCount(result);
     while(true) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         this->writeDuty();

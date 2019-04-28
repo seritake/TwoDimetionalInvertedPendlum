@@ -195,8 +195,14 @@ int main() {
     std::vector<double> pre_angles{0.0, 0.0};
     std::vector<double> d_angles(2);
     std::vector<int> duty_ratio(3);
-    int s;
-    cin >> s;
+
+    // expect to become faster when calling this function next time
+    velocity = r.getVelocity();
+
+    int wait;
+    cout << "waiting for input...";
+    cin >> wait;
+
     while (true) {
 
         position = r.getPosition();
