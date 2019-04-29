@@ -13,7 +13,7 @@
 #include <fstream>
 
 const double PI = 3.1415926535;
-const double L = 120;
+const double L = 0.12;
 const std::vector<std::vector<double> > gMatrix = {
         {0.0, -1.0 / (2.0 * std::sin(PI/3)), 1.0 / (2.0 * std::sin(PI / 3))},
         {1 / (1 + std::cos(PI / 3)), -1.0 / (2.0 * ( 1.0 + std::cos(PI / 3))), -1.0 / (2.0 * ( 1.0 + std::cos(PI / 3)))},
@@ -75,6 +75,8 @@ void Robot::communicate() {
         result = this->mySerial->readline(24, "\n");
         this->setCount(result);
         this->calcSpeed();
+        /*std::cout << this->robotInfo.wheelVelocity[0] << "\t" << this->robotInfo.wheelVelocity[1]
+        << "\t" << this->robotInfo.wheelVelocity[2] << std::endl;*/
         this->calcVelocityAndTheta();
         this->calcWorldVelocity();
         this->calcPosition();
@@ -109,9 +111,12 @@ void Robot::calcSpeed() {
                 diff = TIM_MAX + diff;
             }
         }
-        speed[i] = (double)diff / (double)COUNT_PER_ROTATE * 2.0 * PI * (double)WHEEL_RADIUS / second;
+        speed[i] = (double)diff / (double)COUNT_PER_ROTATE * 2.0 * PI * (double)WHEEL_RADIUS / second / 1000;
     }
-    speed[2] = -speed[2];
+    speed[0] = -speed[0];
+    double tmp = speed[1];
+    speed[1] = speed[2];
+    speed[2] = -tmp;
     this->robotInfo.secDiff = second;
     this->robotInfo.wheelVelocity = speed;
 }

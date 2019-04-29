@@ -58,7 +58,7 @@ vector<double> CameraHandler::getAngles(){
     vector<Point2d> points(2);
     for (auto i = 0; i < this->colorTrackers.capacity(); i++) {
         try {
-            points[i] = this->colorTrackers[i].predictShow(rangeRed);
+            points[i] = this->colorTrackers[i].predict(rangeRed);
             //cout << points[i].x << "\t" << points[i].y << i << endl;
         } catch (exception& e){
             return {0,0};
