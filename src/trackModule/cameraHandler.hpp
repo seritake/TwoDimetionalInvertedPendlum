@@ -94,5 +94,5 @@ vector<double> CameraHandler::getAngles(){
             result.push_back(0);
         }
     }*/
-    return {std::atan(x[1] / x[2]), std::atan(x[0] / x[2])};
+    return {std::atan(x[0] / x[2]), std::atan(x[1] / x[2])};
 }
