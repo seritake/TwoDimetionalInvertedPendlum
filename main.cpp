@@ -90,10 +90,9 @@ T psi(T alpha, T i_p) {
     return -(m * l * l + i_p) / (m * l) * log((1 + tan(alpha / 2)) / (1 - tan(alpha / 2)));
 }
 
-
 /**
  * @voltCalculator
- * This function yields the voltage to contol inverted pendulum under the condition written in READ.me. 
+ * This function yields the voltage to contol inverted pendulum under the condition written in READ.me.
  * @input (angle): This is composed of two param, first of which is angular displacement about y axis, second of which is that about x axis in the world coordinate.
  * @input (x): This is the position and the angle of the center of the omnidirectional mobile robot in the world coordinate. The third element is phi.
  * @input (v): velocity of the center of the omnidirectional mobile robot. The third is the velocity of phi.
@@ -188,8 +187,8 @@ inline long getDiffUs(struct timeval& now, struct timeval& pre) {
 
 int main() {
     //r = Robot();
-    vector<int> cameraList = {1, 2};//camerID 0 & 1
-    vector<double> cameraAngle = {56, 56}; //camera's angle of view. specify for 2 cameras
+    vector<int> cameraList = {1, 2, 3};//camerID 0 & 1
+    vector<double> cameraAngle = {56, 56, 56}; //camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList, cameraAngle);
 
     // handle SIGINT signal

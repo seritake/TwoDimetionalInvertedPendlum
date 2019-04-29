@@ -39,17 +39,15 @@ ColorTracker::ColorTracker(int cameraId) noexcept(false){
 }
 
 ColorTracker::~ColorTracker() noexcept{
-    if(!this->cap.isOpened()){
+    if (!this->cap.isOpened()){
         return;
     }
     this->cap.release();
 	if (!this->cap.isOpened()) {
 		cout << "succeeded to release camera: " << this->cameraId << endl;
-	}
-	else {
+	} else {
 		cout << "failed to release camera: " << this->cameraId << endl;
 	}
-    return;
 }
 
 int ColorTracker::getWidth() noexcept{
@@ -102,7 +100,7 @@ Mat ColorTracker::getCaptureImage() noexcept(false){
 
 Point2d ColorTracker::predict(const colorRange& range) noexcept(false){
     auto img = this->getCaptureImage();
-    auto mask = getColorMask(img,range);
+    auto mask = getColorMask(img, range);
     auto contours = getConvexContours(mask);
     vector<Point> contour;
     try{
