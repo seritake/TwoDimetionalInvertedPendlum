@@ -64,10 +64,13 @@ const static double k_phi[2] = {0.5, 0.5}; //need to be changed.
 
 // declared as global variable for signal handling.
 Robot r;
+#ifdef CREATE_LOG
+std::ofstream fout;
+#endif
 
 template<typename T>
 T saturate(T val, T mn, T mx) {
-    T gradi = 100.0; //gradient of the saturation function.
+    T gradi = 10.0; //gradient of the saturation function.
     return min(max(gradi * val, mn), mx);
 }
 
@@ -148,7 +151,7 @@ void voltCalculator(vector<int> &duty_ratio, vector<double> &angle, vector<doubl
             (nu_0 * saturate(s_0[1] * cap_psi(angle[1], d_angle[1], I_pxx), -1.0, 1.0)) -
             (m * m * l * l * d_angle[1] * d_angle[1]) * sin(angle[1]) * cos(angle[1]) +
             (m + M) * m * g * l * sin(angle[1]));
-
+    Vector3d f_tmp = f;
     f(0) = f(0) / M_t - a[0] * v[0];
     f(1) = f(1) / M_t - a[0] * v[1];
 
@@ -166,6 +169,11 @@ void voltCalculator(vector<int> &duty_ratio, vector<double> &angle, vector<doubl
         //cout << u(i) * DUTY_MULTI << endl;
         duty_ratio[i] = u(i) * DUTY_MULTI;
     }
+#ifdef CREATE_LOG
+    fout << dd_y_x << "," << dd_x_y << "," << s_0[0] << "," << s_0[1] << "," << s_1[0]
+    << "," << s_1[1] << "," << f_tmp(0) << "," << f_tmp(1) << "," << u(0) << ","
+    << u(1) << "," << u(2) << endl;
+#endif
 }
 
 void exitHandler(int s) {
@@ -195,12 +203,9 @@ int main() {
 
 #ifdef CREATE_LOG
     // prepare for logs
-    std::ofstream fout;
     fout.open("../logs/log.csv");
     fout << "time,robot_position_x,robot_position_y,robot_position_w,robot_velocity_x,robot_velocity_y,robot_velocity_w,";
-    fout << "angle_alpha,angle_beta";
-
-    // todo: add input variables to log target
+    fout << "angle_alpha,angle_beta,dd_y_x,dd_x_y,s0_x,s0_y,s1_x,s1_y,f_x,f_y,u_1,u_2,u_3" << endl;
 
     struct timeval first_time;
     bool firstFlag = true;
@@ -211,13 +216,17 @@ int main() {
 
     std::vector<double> position(3);
     std::vector<double> velocity(3);
+    Vector3d point;
+    Vector2d tmpPoint;
     std::vector<double> angles(2);
     std::vector<double> pre_angles{0.0, 0.0};
     std::vector<double> d_angles(2);
     std::vector<int> duty_ratio(3);
+    Matrix2d rotMatrix;
+    Vector2d anglesVec;
 
     // expect to become faster when calling this function next time
-    angles = cameraHandler.getAngles();
+    point = cameraHandler.getPoint();
 
     int wait;
     cout << "waiting for input...";
@@ -226,7 +235,12 @@ int main() {
     while (true) {
         position = r.getPosition();
         velocity = r.getVelocity();
-        angles = cameraHandler.getAngles();
+        point = cameraHandler.getPoint();
+        rotMatrix << cos(position[2]), -sin(position[2]), sin(position[2]), cos(position[2]);
+        tmpPoint << point[0], point[1];
+        anglesVec = rotMatrix * tmpPoint;
+        angles[0] = atan(anglesVec[0] / point[2]);
+        angles[1] = atan(anglesVec[1] / point[2]);
         gettimeofday(&now_time, NULL);
         double elapsed = getDiffUs(now_time, pre_time) / 1000.0;
         for (int i = 0; i < 2; i++) {
@@ -236,13 +250,6 @@ int main() {
         }
         pre_time = now_time;
 
-        voltCalculator(duty_ratio, angles, d_angles, position, velocity);
-        for (int i = 0; i <= 2; i++) {
-            if (duty_ratio[i] >= 800 || duty_ratio[i] <= -800) {
-                cout << "DT Ratio is out of range.\n";
-                duty_ratio[i] = 800 * (duty_ratio[i] > 0 ? 1 : -1);
-            }
-        }
 #ifdef CREATE_LOG
         static int count = 0;
         if (firstFlag) {
@@ -251,9 +258,18 @@ int main() {
         }
         // using integer timestamp is often convenient when processing log
         fout << getDiffUs(now_time, first_time) << "," << position[0] << "," << position[1] << "," << position[2]
-             << "," << velocity[0] << "," << velocity[1] << "," << velocity[2] << "," << angles[0] << "," << angles[1] << endl;
+             << "," << velocity[0] << "," << velocity[1] << "," << velocity[2] << "," << angles[0]*10 << "," << angles[1]*10 << ",";
         // todo: add input variables to log target
 #endif
+
+        voltCalculator(duty_ratio, angles, d_angles, position, velocity);
+        for (int i = 0; i <= 2; i++) {
+            if (duty_ratio[i] >= 800 || duty_ratio[i] <= -800) {
+                cout << "DT Ratio is out of range.\n";
+                duty_ratio[i] = 800 * (duty_ratio[i] > 0 ? 1 : -1);
+            }
+        }
+        cout << angles[0] << "," << angles[1] << endl;
         r.setDuty(duty_ratio);
     }
 }
