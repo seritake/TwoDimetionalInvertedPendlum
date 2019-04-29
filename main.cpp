@@ -106,15 +106,14 @@ void voltCalculator(vector<int> &duty_ratio, vector<double> &angle, vector<doubl
     Vector3d u, f;
     Matrix3d A;
 
-    double I_pxx = I_p * (1.0 - sin(angle[0])), I_pyy = I_p * (1.0 -
-                                                               sin(angle[1])); //I_pzz = 1/12*m*(l*sqrt(sin(angle[0])*sin(angle[0]) + sin(angle[1])*sin(angle[1])))*(l*sqrt(sin(angle[0])*sin(angle[0]) + sin(angle[1])*sin(angle[1]))); //(kg/m^{2}): moment of inertia of the pendulum about the X-, Y-, Z-axis, respectively.
+    double I_pxx = I_p * (1.0 - sin(angle[0])), I_pyy = I_p * (1.0 - sin(angle[1])); //I_pzz = 1/12*m*(l*sqrt(sin(angle[0])*sin(angle[0]) + sin(angle[1])*sin(angle[1])))*(l*sqrt(sin(angle[0])*sin(angle[0]) + sin(angle[1])*sin(angle[1]))); //(kg/m^{2}): moment of inertia of the pendulum about the X-, Y-, Z-axis, respectively.
     y_x = x[0] - psi(angle[0], I_pyy);
     x_y = x[1] - psi(angle[1], I_pxx);
 
 
-    d_y_x = v[0] + (m * l * l + I_pyy) / (m * l) * (1.0 + tan(angle[0] / 2.0) * tan(angle[0] / 2.0)) /
+    d_y_x = v[0] - (m * l * l + I_pyy) / (m * l) * (1.0 + tan(angle[0] / 2.0) * tan(angle[0] / 2.0)) /
                    (1.0 - tan(angle[0] / 2.0) * tan(angle[0] / 2.0)) * d_angle[0];
-    d_x_y = v[1] + (m * l * l + I_pxx) / (m * l) * (1.0 + tan(angle[1] / 2.0) * tan(angle[1] / 2.0)) /
+    d_x_y = v[1] - (m * l * l + I_pxx) / (m * l) * (1.0 + tan(angle[1] / 2.0) * tan(angle[1] / 2.0)) /
                    (1.0 - tan(angle[1] / 2.0) * tan(angle[1] / 2.0)) * d_angle[1];
 
     //cout << d_y_x << '\t' << d_x_y << endl;
