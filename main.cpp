@@ -159,12 +159,12 @@ void voltCalculator(vector<int> &duty_ratio, vector<double> &angle, vector<doubl
             (-sqrt(3) * sin(x[2]) - cos(x[2])) / (6 * b[0]), (sqrt(3) * cos(x[2]) - sin(x[2])) / (6 * b[0]), 1.0,
             (-sqrt(3) * sin(x[2]) + cos(x[2])) / (6 * b[0]), (-sqrt(3) * cos(x[2]) - sin(x[2])) / (6 * b[0]), 1.0;
     u = A * f;
-    cout << "FORTH:" << u(0) << '\t' << u(1) << '\t' << u(2) << endl;
+    //cout << "FORTH:" << u(0) << '\t' << u(1) << '\t' << u(2) << endl;
 
-    cout << u(0) << endl;
+    //cout << u(0) << endl;
     //change the vlotage to DT ratio.
     for (int i = 0; i <= 2; i++) {
-        cout << u(i) * DUTY_MULTI << endl;
+        //cout << u(i) * DUTY_MULTI << endl;
         duty_ratio[i] = u(i) * DUTY_MULTI;
     }
 }
@@ -175,10 +175,13 @@ void exitHandler(int s) {
     exit(1);
 }
 
+inline long getDiffUs(struct timeval& now, struct timeval& pre) {
+    return (now.tv_sec - pre.tv_sec) * 1000000 + now.tv_usec - pre.tv_usec;
+}
 
 int main() {
-    r = Robot();
-    vector<int> cameraList = {2, 1};//camerID 0 & 1
+    //r = Robot();
+    vector<int> cameraList = {1, 2};//camerID 0 & 1
     vector<double> cameraAngle = {56, 56}; //camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList, cameraAngle);
 
@@ -226,9 +229,9 @@ int main() {
         velocity = r.getVelocity();
         angles = cameraHandler.getAngles();
         gettimeofday(&now_time, NULL);
-        double elapsed = (now_time.tv_usec - pre_time.tv_usec) / 1000.0;
+        double elapsed = getDiffUs(now_time, pre_time) / 1000.0;
         for (int i = 0; i < 2; i++) {
-            cout << "elapsed:" << '\t' << elapsed << endl;
+            //cout << "elapsed:" << '\t' << elapsed << endl;
             d_angles[i] = (angles[i] - pre_angles[i]) / elapsed;
             pre_angles[i] = angles[i];
         }
@@ -242,13 +245,14 @@ int main() {
             }
         }
 #ifdef CREATE_LOG
+        static int count = 0;
         if (firstFlag) {
             first_time = now_time;
             firstFlag = false;
         }
         // using integer timestamp is often convenient when processing log
-        fout << now_time.tv_usec - pre_time.tv_usec << "," << position[0] << "," << position[1] << "," << position[2]
-             << "," << velocity[0] << "," << velocity[1] << "," << velocity[2] << "," << angles[0] << "," << angles[1];
+        fout << getDiffUs(now_time, first_time) << "," << position[0] << "," << position[1] << "," << position[2]
+             << "," << velocity[0] << "," << velocity[1] << "," << velocity[2] << "," << angles[0] << "," << angles[1] << endl;
         // todo: add input variables to log target
 #endif
         r.setDuty(duty_ratio);

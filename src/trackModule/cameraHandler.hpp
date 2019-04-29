@@ -9,10 +9,11 @@
 #include <eigen3/Eigen/LU>
 #include "vector"
 
-#define FOCUS 440
+#define FOCUS 400
 #define CENTER_X 160
 #define CENTER_Y 120
 #define ROBOT_RADIUS 10
+#define CAMERA_HEIGHT 4
 
 // For debug
 #define PRINT_MAT(X) cout << #X << ":\n" << X << endl << endl
@@ -54,16 +55,17 @@ CameraHandler::CameraHandler(const vector<int> cameraList,const vector<double> c
 vector<double> CameraHandler::getAngles(){
     Matrix<double, 4, 3> B;
     Vector4d b;
-    b << 0, -FOCUS * ROBOT_RADIUS, 0, -FOCUS * ROBOT_RADIUS;
     vector<Point2d> points(2);
     for (auto i = 0; i < this->colorTrackers.capacity(); i++) {
         try {
-            points[i] = this->colorTrackers[i].predict(rangeRed);
+            points[i] = this->colorTrackers[i].predictShow(rangeRed);
             //cout << points[i].x << "\t" << points[i].y << i << endl;
         } catch (exception& e){
             return {0,0};
         }
     }
+    b << CAMERA_HEIGHT * (CENTER_X - points[0].x), -FOCUS * ROBOT_RADIUS + CAMERA_HEIGHT * (CENTER_Y - points[0].y),
+    CAMERA_HEIGHT * (CENTER_X - points[1].x), -FOCUS * ROBOT_RADIUS + CAMERA_HEIGHT * (CENTER_Y - points[1].y);
     B << 0, -FOCUS, -CENTER_X + points[0].x,
             FOCUS, 0, -CENTER_Y + points[0].y,
             1.73205/2*FOCUS, 0.5 * FOCUS, -CENTER_X + points[1].x,
