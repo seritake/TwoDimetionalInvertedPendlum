@@ -30,7 +30,7 @@ inline std::vector<std::vector<double> > bMatrix(double theta) {
 Robot::Robot() {
     this->connected = true;
     this->robotInfo = {
-            -2 * PI / 3,
+            - PI / 2,
             0,
             {0,0,0},
             {0,0,0},
@@ -40,7 +40,7 @@ Robot::Robot() {
     this->targetDuty = {0,0,0};
     this->nextCount = {0,0,0,0};
     this->prevCount = {0,0,0,0};
-    this->mySerial = new serial::Serial("/dev/ttyACM0", 115200, serial::Timeout::simpleTimeout(1000));
+    this->mySerial = new serial::Serial("/dev/ttyACM1", 115200, serial::Timeout::simpleTimeout(1000));
     std::thread th(&Robot::communicate, this);
     th.detach();
 }

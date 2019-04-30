@@ -54,13 +54,13 @@ const static double DUTY_MX = 839.0;
 const static double DUTY_MULTI = DUTY_MX / 15.0;
 
 //control
-const static double nu_0 = 2.2; //need to be calculated.
-const static double delta = 2.0;
-const static double delta_1 = 2.0; //need to be calculated.
+const static double nu_0 = 5; //need to be calculated.
+const static double delta = 5;
+const static double delta_1 = 5; //need to be calculated.
 const static double a[2] = {-3.0 * K_t * K_t / (2 * R_w * R_w * M_t * R_a),
                             -3.0 * K_t * K_t * L_c * L_c / (R_w * R_w * I_z * R_a)};
 const static double b[2] = {K_t / (2.0 * R_w * M_t * R_a), K_t * L_c / (R_w * I_z * R_a)};
-const static double k_phi[2] = {0.5, 0.5}; //need to be changed.
+const static double k_phi[2] = {5, 5}; //need to be changed.
 
 // declared as global variable for signal handling.
 Robot r;
@@ -131,8 +131,8 @@ void voltCalculator(vector<int> &duty_ratio, vector<double> &angle, vector<doubl
 
     //cout << "s_1:\t" <<  s_1[0] << '\t' << s_1[1] << endl;
 
-    d_s_1[0] = 1 / (cos(angle[0]) * cos(angle[0])) + delta_1 * (d_y_x + dd_y_x);
-    d_s_1[1] = 1 / (cos(angle[1]) * cos(angle[1])) + delta_1 * (d_x_y + dd_x_y);
+    d_s_1[0] = 1 / (cos(angle[0]) * cos(angle[0])) * d_angle[0] + delta_1 * (d_y_x + dd_y_x);
+    d_s_1[1] = 1 / (cos(angle[1]) * cos(angle[1])) * d_angle[1] + delta_1 * (d_x_y + dd_x_y);
 
     //cout << "d_s_1:\t" << d_s_1[0] << '\t' << d_s_1[1] << endl;
 
@@ -188,7 +188,7 @@ inline long getDiffUs(struct timeval& now, struct timeval& pre) {
 
 int main() {
     //r = Robot();
-    vector<int> cameraList = {1, 2};//camerID 0 & 1
+    vector<int> cameraList = {4, 3};//camerID 0 & 1
     vector<double> cameraAngle = {56, 56}; //camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList, cameraAngle);
 
@@ -205,7 +205,7 @@ int main() {
     // prepare for logs
     fout.open("../logs/log.csv");
     fout << "time,robot_position_x,robot_position_y,robot_position_w,robot_velocity_x,robot_velocity_y,robot_velocity_w,";
-    fout << "angle_alpha,angle_beta,dd_y_x,dd_x_y,s0_x,s0_y,s1_x,s1_y,f_x,f_y,u_1,u_2,u_3" << endl;
+    fout << "angle_alpha,angle_beta,angle_dd_alpha,angle_dd_beta,dd_y_x,dd_x_y,s0_x,s0_y,s1_x,s1_y,f_x,f_y,u_1,u_2,u_3" << endl;
 
     struct timeval first_time;
     bool firstFlag = true;
@@ -236,16 +236,16 @@ int main() {
         position = r.getPosition();
         velocity = r.getVelocity();
         point = cameraHandler.getPoint();
-        rotMatrix << cos(position[2]), -sin(position[2]), sin(position[2]), cos(position[2]);
+        rotMatrix << cos(position[2] - 3.141592/2), -sin(position[2] - 3.141592/2), sin(position[2] - 3.141592/2), cos(position[2] - 3.141592/2);
         tmpPoint << point[0], point[1];
         anglesVec = rotMatrix * tmpPoint;
         angles[0] = atan(anglesVec[0] / point[2]);
         angles[1] = atan(anglesVec[1] / point[2]);
         gettimeofday(&now_time, NULL);
-        double elapsed = getDiffUs(now_time, pre_time) / 1000.0;
+        double elapsed = getDiffUs(now_time, pre_time);
         for (int i = 0; i < 2; i++) {
             //cout << "elapsed:" << '\t' << elapsed << endl;
-            d_angles[i] = (angles[i] - pre_angles[i]) / elapsed;
+            d_angles[i] = (angles[i] - pre_angles[i]) / elapsed * 1000;
             pre_angles[i] = angles[i];
         }
         pre_time = now_time;
@@ -258,10 +258,10 @@ int main() {
         }
         // using integer timestamp is often convenient when processing log
         fout << getDiffUs(now_time, first_time) << "," << position[0] << "," << position[1] << "," << position[2]
-             << "," << velocity[0] << "," << velocity[1] << "," << velocity[2] << "," << angles[0]*10 << "," << angles[1]*10 << ",";
+             << "," << velocity[0] << "," << velocity[1] << "," << velocity[2] << "," << angles[0]*10 << "," << angles[1]*10 << ","
+             << d_angles[0] << "," << d_angles[1] << ",";
         // todo: add input variables to log target
 #endif
-
         voltCalculator(duty_ratio, angles, d_angles, position, velocity);
         for (int i = 0; i <= 2; i++) {
             if (duty_ratio[i] >= 800 || duty_ratio[i] <= -800) {
@@ -269,7 +269,8 @@ int main() {
                 duty_ratio[i] = 800 * (duty_ratio[i] > 0 ? 1 : -1);
             }
         }
-        cout << angles[0] << "," << angles[1] << endl;
+        cout << d_angles[0] << "," << d_angles[1] << endl;
+        cout << position[0] << "," << position[1] << "," << position[2] << endl;
         r.setDuty(duty_ratio);
     }
 }
