@@ -21,6 +21,7 @@ const std::vector<std::vector<double> > gMatrix = {
 };
 
 inline std::vector<std::vector<double> > bMatrix(double theta) {
+    theta = theta - 2 * PI / 3;
     return {{std::cos(theta), -std::sin(theta), 0},
             {std::sin(theta), std::cos(theta), 0},
             {0, 0, 1}
