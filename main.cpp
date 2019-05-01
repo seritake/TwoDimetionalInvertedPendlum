@@ -15,7 +15,7 @@
 #include <fstream>
 
 // comment out this line if no logs are needed.
-#define CREATE_LOG
+//#define CREATE_LOG
 
 // For debug
 #define PRINT_MAT(X) cout << #X << ":\n" << X << endl << endl
@@ -62,118 +62,45 @@ const static double a[2] = {-3.0 * K_t * K_t / (2 * R_w * R_w * M_t * R_a),
 const static double b[2] = {K_t / (2.0 * R_w * M_t * R_a), K_t * L_c / (R_w * I_z * R_a)};
 const static double k_phi[2] = {5, 5}; //need to be changed.
 
+// back stepping control
+const static double l_cog = 0.65;
+const static double K1 = 10;
+const static double K2 = 10;
+
 // declared as global variable for signal handling.
 Robot r;
 #ifdef CREATE_LOG
 std::ofstream fout;
 #endif
 
-template<typename T>
-T saturate(T val, T mn, T mx) {
-    T gradi = 10.0; //gradient of the saturation function.
-    return min(max(gradi * val, mn), mx);
+vector<double> calcForce(std::vector<double>& angle, std::vector<double>& angle_velocity) {
+    vector<double> e_b(2);
+    e_b[0] = angle_velocity[0] + K1 * angle[0];
+    e_b[1] = angle_velocity[1] + K1 * angle[1];
+
+    vector<double> phi(2);
+    phi[0] = m * angle_velocity[0] * angle_velocity[0] * sin(angle[0]) * cos(angle[0])
+            / (- l_cog *(M + m * sin(angle[0]) * sin(angle[0])));
+    phi[1] = m * angle_velocity[1] * angle_velocity[1] * sin(angle[1]) * cos(angle[1])
+             / (- l_cog *(M + m * sin(angle[1]) * sin(angle[1])));
+
+    vector<double> u(2);
+    u[0] = - l_cog * ((K1 + K2) * e_b[0] + (1 - K1 * K1)*angle[0] + phi[0]);
+    u[1] = - l_cog * ((K1 + K2) * e_b[1] + (1 - K1 * K1)*angle[1] + phi[1]);
+
+    vector<double> f(2);
+    f[0] = (M + m) * g * tan(angle[0]) - u[0] * (M + m * sin(angle[0]) * sin(angle[0])) / cos(angle[0]);
+    f[1] = (M + m) * g * tan(angle[1]) - u[1] * (M + m * sin(angle[1]) * sin(angle[1])) / cos(angle[1]);
+
+    return f;
 }
 
-//i_p is either I_pxx or I_pyy.
-template<typename T>
-T cap_psi(T alpha, T d_alpha, T i_p) {
-    return 1.0 + 2.0 * delta_1 * ((m * l * l) + i_p) / (m * l) * d_alpha * sin(alpha);
-}
-
-template<typename T>
-T G_func(T alpha, T d_alpha, T i_p) {
-    return g + (m * l * l + i_p) / (m * l * cos(alpha)) * d_alpha * d_alpha;
-}
-
-template<typename T>
-T psi(T alpha, T i_p) {
-    return -(m * l * l + i_p) / (m * l) * log((1 + tan(alpha / 2)) / (1 - tan(alpha / 2)));
-}
-
-
-/**
- * @voltCalculator
- * This function yields the voltage to contol inverted pendulum under the condition written in READ.me. 
- * @input (angle): This is composed of two param, first of which is angular displacement about y axis, second of which is that about x axis in the world coordinate.
- * @input (x): This is the position and the angle of the center of the omnidirectional mobile robot in the world coordinate. The third element is phi.
- * @input (v): velocity of the center of the omnidirectional mobile robot. The third is the velocity of phi.
- * @parameter (u): This is the value of the voltage to three servo motors.
- */
-
-void voltCalculator(vector<int> &duty_ratio, vector<double> &angle, vector<double> &d_angle, vector<double> &x,
-                    vector<double> &v) {
-    Vector3d volt;
-    double y_x, d_y_x, dd_y_x;
-    double x_y, d_x_y, dd_x_y;
-    double s_0[2], s_1[2], d_s_1[2];
-    Vector3d u, f;
-    Matrix3d A;
-
-    double I_pxx = I_p * (1.0 - sin(angle[0])), I_pyy = I_p * (1.0 - sin(angle[1])); //I_pzz = 1/12*m*(l*sqrt(sin(angle[0])*sin(angle[0]) + sin(angle[1])*sin(angle[1])))*(l*sqrt(sin(angle[0])*sin(angle[0]) + sin(angle[1])*sin(angle[1]))); //(kg/m^{2}): moment of inertia of the pendulum about the X-, Y-, Z-axis, respectively.
-    y_x = x[0] - psi(angle[0], I_pyy);
-    x_y = x[1] - psi(angle[1], I_pxx);
-
-
-    d_y_x = v[0] - (m * l * l + I_pyy) / (m * l) * (1.0 + tan(angle[0] / 2.0) * tan(angle[0] / 2.0)) /
-                   (1.0 - tan(angle[0] / 2.0) * tan(angle[0] / 2.0)) * d_angle[0];
-    d_x_y = v[1] - (m * l * l + I_pxx) / (m * l) * (1.0 + tan(angle[1] / 2.0) * tan(angle[1] / 2.0)) /
-                   (1.0 - tan(angle[1] / 2.0) * tan(angle[1] / 2.0)) * d_angle[1];
-
-    //cout << d_y_x << '\t' << d_x_y << endl;
-
-    dd_y_x = G_func(angle[0], d_angle[0], I_pyy) * tan(angle[0]);
-    dd_x_y = G_func(angle[1], d_angle[1], I_pxx) * tan(angle[1]);
-
-    //cout << dd_y_x << '\t' << dd_x_y << endl;
-
-    s_1[0] = tan(angle[0]) + delta_1 * (y_x + d_y_x);
-    s_1[1] = tan(angle[1]) + delta_1 * (x_y + d_x_y);
-
-    //cout << "s_1:\t" <<  s_1[0] << '\t' << s_1[1] << endl;
-
-    d_s_1[0] = 1 / (cos(angle[0]) * cos(angle[0])) * d_angle[0] + delta_1 * (d_y_x + dd_y_x);
-    d_s_1[1] = 1 / (cos(angle[1]) * cos(angle[1])) * d_angle[1] + delta_1 * (d_x_y + dd_x_y);
-
-    //cout << "d_s_1:\t" << d_s_1[0] << '\t' << d_s_1[1] << endl;
-
-    s_0[0] = cos(angle[0]) * cos(angle[0]) * d_s_1[0] + delta * s_1[0];
-    s_0[1] = cos(angle[1]) * cos(angle[1]) * d_s_1[1] + delta * s_1[1];
-
-    f(0) = 1 / (m * l * cos(angle[0])) *
-           (((m + M) * (m * l * l + I_pyy) - m * m * l * l * cos(angle[0]) * cos(angle[0])) *
-            (nu_0 * saturate(s_0[0] * cap_psi(angle[0], d_angle[0], I_pyy), -1.0, 1.0)) -
-            (m * m * l * l * d_angle[0] * d_angle[0]) * sin(angle[0]) * cos(angle[0]) +
-            (m + M) * m * g * l * sin(angle[0]));
-
-
-    f(1) = 1 / (m * l * cos(angle[1])) *
-           (((m + M) * (m * l * l + I_pxx) - m * m * l * l * cos(angle[1]) * cos(angle[1])) *
-            (nu_0 * saturate(s_0[1] * cap_psi(angle[1], d_angle[1], I_pxx), -1.0, 1.0)) -
-            (m * m * l * l * d_angle[1] * d_angle[1]) * sin(angle[1]) * cos(angle[1]) +
-            (m + M) * m * g * l * sin(angle[1]));
-    Vector3d f_tmp = f;
-    f(0) = f(0) / M_t - a[0] * v[0];
-    f(1) = f(1) / M_t - a[0] * v[1];
-
-    f(2) = (-k_phi[0] * v[2] - a[1] * v[2] - k_phi[1] * x[2]) / (3 * b[1]);
-
-    A << cos(x[2]) / (3 * b[0]), sin(x[2]) / (3 * b[0]), 1.0,
-            (-sqrt(3) * sin(x[2]) - cos(x[2])) / (6 * b[0]), (sqrt(3) * cos(x[2]) - sin(x[2])) / (6 * b[0]), 1.0,
-            (-sqrt(3) * sin(x[2]) + cos(x[2])) / (6 * b[0]), (-sqrt(3) * cos(x[2]) - sin(x[2])) / (6 * b[0]), 1.0;
-    u = A * f;
-    //cout << "FORTH:" << u(0) << '\t' << u(1) << '\t' << u(2) << endl;
-
-    //cout << u(0) << endl;
-    //change the vlotage to DT ratio.
-    for (int i = 0; i <= 2; i++) {
-        //cout << u(i) * DUTY_MULTI << endl;
-        duty_ratio[i] = u(i) * DUTY_MULTI;
-    }
-#ifdef CREATE_LOG
-    fout << dd_y_x << "," << dd_x_y << "," << s_0[0] << "," << s_0[1] << "," << s_1[0]
-    << "," << s_1[1] << "," << f_tmp(0) << "," << f_tmp(1) << "," << u(0) << ","
-    << u(1) << "," << u(2) << endl;
-#endif
+vector<double> calcVoltage(vector<double>&& force, const Matrix3d& r_inv) {
+    static Vector3d wheelForce;
+    static Vector3d robotForce;
+    robotForce << 0, force[0], force[1];
+    wheelForce = r_inv * robotForce;
+    return {wheelForce[0], wheelForce[1], wheelForce[2]};
 }
 
 void exitHandler(int s) {
@@ -216,7 +143,6 @@ int main() {
 
     std::vector<double> position(3);
     std::vector<double> velocity(3);
-    Vector3d point;
     Vector2d tmpPoint;
     std::vector<double> angles(2);
     std::vector<double> pre_angles{0.0, 0.0};
@@ -225,8 +151,13 @@ int main() {
     Matrix2d rotMatrix;
     Vector2d anglesVec;
 
+    Matrix3d r_inv;
+    r_inv << 25.0 / 9.0, 0, 2.0 / 3.0,
+            25.0 / 9.0, - 1.0 / 3.0 * 1.73205 , - 1.0 / 3.0,
+            25.0 / 9.0, 1.0 / 3.0 * 1.73205 , - 1.0 / 3.0;
+
     // expect to become faster when calling this function next time
-    point = cameraHandler.getPoint();
+    angles = cameraHandler.getAngle();
 
     int wait;
     cout << "waiting for input...";
@@ -235,12 +166,7 @@ int main() {
     while (true) {
         position = r.getPosition();
         velocity = r.getVelocity();
-        point = cameraHandler.getPoint();
-        rotMatrix << cos(position[2] - 3.141592/2), -sin(position[2] - 3.141592/2), sin(position[2] - 3.141592/2), cos(position[2] - 3.141592/2);
-        tmpPoint << point[0], point[1];
-        anglesVec = rotMatrix * tmpPoint;
-        angles[0] = atan(anglesVec[0] / point[2]);
-        angles[1] = atan(anglesVec[1] / point[2]);
+        angles = cameraHandler.getAngle();
         gettimeofday(&now_time, NULL);
         double elapsed = getDiffUs(now_time, pre_time);
         for (int i = 0; i < 2; i++) {
@@ -262,15 +188,19 @@ int main() {
              << d_angles[0] << "," << d_angles[1] << ",";
         // todo: add input variables to log target
 #endif
-        voltCalculator(duty_ratio, angles, d_angles, position, velocity);
+        //voltCalculator(duty_ratio, angles, d_angles, position, velocity);
+        //vector<double> force_debug = calcForce(angles, d_angles);
+        vector<double> force = calcVoltage(calcForce(angles, d_angles), r_inv);
+        //vector<double> force = calcVoltage({2, 0}, r_inv);
+
         for (int i = 0; i <= 2; i++) {
-            if (duty_ratio[i] >= 800 || duty_ratio[i] <= -800) {
+            duty_ratio[i] = (int)force[i] * 500;
+            if (duty_ratio[i] >= 839 || duty_ratio[i] <= -839) {
                 cout << "DT Ratio is out of range.\n";
-                duty_ratio[i] = 800 * (duty_ratio[i] > 0 ? 1 : -1);
+                duty_ratio[i] = 839 * (duty_ratio[i] > 0 ? 1 : -1);
             }
         }
-        cout << d_angles[0] << "," << d_angles[1] << endl;
-        cout << position[0] << "," << position[1] << "," << position[2] << endl;
+        //cout << angles[0] << "\t" << angles[1] << endl;
         r.setDuty(duty_ratio);
     }
 }

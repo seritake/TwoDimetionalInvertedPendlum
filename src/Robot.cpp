@@ -30,7 +30,7 @@ inline std::vector<std::vector<double> > bMatrix(double theta) {
 Robot::Robot() {
     this->connected = true;
     this->robotInfo = {
-            - PI / 2,
+            0,
             0,
             {0,0,0},
             {0,0,0},
@@ -191,7 +191,9 @@ void Robot::calcPosition() {
 }
 
 void Robot::setDuty(const std::vector<int>& vec) {
-    this->targetDuty = vec;
+    this->targetDuty[0] = vec[0];
+    this->targetDuty[1] = vec[2];
+    this->targetDuty[2] = vec[1];
 }
 
 const std::vector<double>& Robot::getVelocity() const {

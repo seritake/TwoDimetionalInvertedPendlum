@@ -41,7 +41,7 @@ public:
 
     CameraHandler(const vector<int> cameraList,const vector<double> cameraAngle) noexcept(false);//throw std::exception
 
-    Vector3d getPoint();//throw std::exception
+    vector<double> getAngle();//throw std::exception
 };
 
 CameraHandler::CameraHandler(const vector<int> cameraList,const vector<double> cameraAngle){
@@ -52,18 +52,33 @@ CameraHandler::CameraHandler(const vector<int> cameraList,const vector<double> c
     this->angles = cameraAngle;
 }
 
-Vector3d CameraHandler::getPoint(){
+vector<double> CameraHandler::getAngle(){
     Matrix<double, 4, 3> B;
     Vector4d b;
     vector<Point2d> points(2);
-    for (auto i = 0; i < this->colorTrackers.capacity(); i++) {
+    vector<future<Point2d>> futures;
+    for(auto & colorTracker : this->colorTrackers){
+        futures.push_back(
+                async( std::launch::async ,&ColorTracker::predict,&colorTracker,rangeRed)
+        );
+    }
+
+    for(auto i = 0;i < futures.size();i++){
+        try{
+            points[i] = futures[i].get();
+        } catch (exception& e){
+            return {0,0};
+        }
+    }
+
+    /*for (auto i = 0; i < this->colorTrackers.capacity(); i++) {
         try {
             points[i] = this->colorTrackers[i].predict(rangeRed);
             //cout << points[i].x << "\t" << points[i].y << i << endl;
         } catch (exception& e){
-            return {0,0,100};
+            return {0,0};
         }
-    }
+    }*/
     b << CAMERA_HEIGHT * (CENTER_X - points[0].x), -FOCUS * ROBOT_RADIUS + CAMERA_HEIGHT * (CENTER_Y - points[0].y),
     CAMERA_HEIGHT * (CENTER_X - points[1].x), -FOCUS * ROBOT_RADIUS + CAMERA_HEIGHT * (CENTER_Y - points[1].y);
     B << 0, -FOCUS, -CENTER_X + points[0].x,
@@ -94,6 +109,5 @@ Vector3d CameraHandler::getPoint(){
             result.push_back(0);
         }
     }*/
-    return x;
-    //{std::atan(x[0] / x[2]), std::atan(x[1] / x[2])};
+    return {std::atan(x[0] / x[2]), std::atan(x[1] / x[2])};
 }
