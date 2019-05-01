@@ -197,7 +197,7 @@ int main() {
             duty_ratio[i] = (int)force[i] * 1500;
             if (duty_ratio[i] >= 839 || duty_ratio[i] <= -839) {
                 cout << "DT Ratio is out of range.\n";
-                duty_ratio[i] = 700 * (duty_ratio[i] > 0 ? 1 : -1);
+                duty_ratio[i] = 550 * (duty_ratio[i] > 0 ? 1 : -1);
             }
         }
         //cout << angles[0] << "\t" << angles[1] << endl;
