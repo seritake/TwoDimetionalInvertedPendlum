@@ -187,7 +187,7 @@ inline long getDiffUs(struct timeval& now, struct timeval& pre) {
 
 int main() {
     //r = Robot();
-    vector<int> cameraList = {1, 2, 3};//camerID 0 & 1
+    vector<int> cameraList = {3, 4, 5};//camerID 0 & 1
     vector<double> cameraAngle = {56, 56, 56}; //camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList, cameraAngle);
 
@@ -268,7 +268,7 @@ int main() {
                 duty_ratio[i] = 800 * (duty_ratio[i] > 0 ? 1 : -1);
             }
         }
-        cout << d_angles[0] << "," << d_angles[1] << endl;
+        cout << angles[0] << "," << angles[1] << endl;
         cout << position[0] << "," << position[1] << "," << position[2] << endl;
         r.setDuty(duty_ratio);
     }
