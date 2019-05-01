@@ -1,4 +1,5 @@
 #pragma once
+
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <future>
@@ -17,7 +18,7 @@
 
 // For debug
 #define PRINT_MAT(X) cout << #X << ":\n" << X << endl << endl
-#define PRINT_MAT2(X,DESC) cout << DESC << ":\n" << X << endl << endl
+#define PRINT_MAT2(X, DESC) cout << DESC << ":\n" << X << endl << endl
 #define PRINT_FNC    cout << "[" << __func__ << "]" << endl
 
 using namespace Eigen;
@@ -33,44 +34,46 @@ using cv::Point2d;
 using namespace Eigen;
 
 //this class is not for general use.
-class CameraHandler{
+class CameraHandler {
 private:
     vector<ColorTracker> colorTrackers;
     vector<double> angles;
 public:
 
-    CameraHandler(const vector<int> cameraList,const vector<double> cameraAngle) noexcept(false);//throw std::exception
+    CameraHandler(const vector<int> cameraList, const vector<double> cameraAngle) noexcept(false);//throw std::exception
 
     Vector3d getPoint();//throw std::exception
 };
 
-CameraHandler::CameraHandler(const vector<int> cameraList,const vector<double> cameraAngle){
+CameraHandler::CameraHandler(const vector<int> cameraList, const vector<double> cameraAngle) {
     this->colorTrackers.reserve(cameraList.size());
-    for(int i = 0;i < cameraList.size();i++){
+    for (int i = 0; i < cameraList.size(); i++) {
         this->colorTrackers.push_back(*new ColorTracker(cameraList[i]));
     }
     this->angles = cameraAngle;
 }
 
-Vector3d CameraHandler::getPoint(){
-    Matrix<double, 4, 3> B;
-    Vector4d b;
-    vector<Point2d> points(2);
+Vector3d CameraHandler::getPoint() {
+    Matrix<double, 6, 3> B;
+    Matrix<double, 6, 1> b;
+    vector<Point2d> points(3);
     for (auto i = 0; i < this->colorTrackers.capacity(); i++) {
         try {
             points[i] = this->colorTrackers[i].predict(rangeRed);
-            //cout << points[i].x << "\t" << points[i].y << i << endl;
-        } catch (exception& e){
-            return {0,0,100};
+        } catch (exception &e) {
+            return {0, 0, 100};
         }
     }
     b << CAMERA_HEIGHT * (CENTER_X - points[0].x), -FOCUS * ROBOT_RADIUS + CAMERA_HEIGHT * (CENTER_Y - points[0].y),
-    CAMERA_HEIGHT * (CENTER_X - points[1].x), -FOCUS * ROBOT_RADIUS + CAMERA_HEIGHT * (CENTER_Y - points[1].y);
+            CAMERA_HEIGHT * (CENTER_X - points[1].x), -FOCUS * ROBOT_RADIUS + CAMERA_HEIGHT * (CENTER_Y - points[1].y),
+            CAMERA_HEIGHT * (CENTER_X - points[2].x), -FOCUS * ROBOT_RADIUS + CAMERA_HEIGHT * (CENTER_Y - points[2].y);
     B << 0, -FOCUS, -CENTER_X + points[0].x,
             FOCUS, 0, -CENTER_Y + points[0].y,
-            1.73205/2*FOCUS, 0.5 * FOCUS, -CENTER_X + points[1].x,
-            - 0.5 * FOCUS, 1.73205 / 2 * FOCUS, -CENTER_Y + points[1].y;
-    FullPivLU< Matrix3d > lu(B.transpose() * B);
+            1.73205 / 2 * FOCUS, 0.5 * FOCUS, -CENTER_X + points[1].x,
+            -0.5 * FOCUS, 1.73205 / 2 * FOCUS, -CENTER_Y + points[1].y,
+            -1.73205 / 2 * FOCUS, 0.5 * FOCUS, -CENTER_X + points[2].x,
+            -0.5 * FOCUS, -1.73205 / 2 * FOCUS, -CENTER_Y + points[2].y;
+    FullPivLU<Matrix3d> lu(B.transpose() * B);
     Vector3d x = lu.solve(-B.transpose() * b);
     //PRINT_MAT(x);
 
