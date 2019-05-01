@@ -200,7 +200,7 @@ int main() {
                 duty_ratio[i] = 839 * (duty_ratio[i] > 0 ? 1 : -1);
             }
         }
-        //cout << angles[0] << "\t" << angles[1] << endl;
+        cout << angles[0] << "\t" << angles[1] << endl;
         r.setDuty(duty_ratio);
     }
 }
