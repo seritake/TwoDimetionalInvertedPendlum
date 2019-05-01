@@ -115,8 +115,8 @@ inline long getDiffUs(struct timeval& now, struct timeval& pre) {
 
 int main() {
     //r = Robot();
-    vector<int> cameraList = {4, 3};//camerID 0 & 1
-    vector<double> cameraAngle = {56, 56}; //camera's angle of view. specify for 2 cameras
+    vector<int> cameraList = {3,4,5};//camerID 0 & 1
+    vector<double> cameraAngle = {56, 56,56}; //camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList, cameraAngle);
 
     // handle SIGINT signal
@@ -194,13 +194,13 @@ int main() {
         //vector<double> force = calcVoltage({2, 0}, r_inv);
 
         for (int i = 0; i <= 2; i++) {
-            duty_ratio[i] = (int)force[i] * 500;
+            duty_ratio[i] = (int)force[i] * 1500;
             if (duty_ratio[i] >= 839 || duty_ratio[i] <= -839) {
                 cout << "DT Ratio is out of range.\n";
-                duty_ratio[i] = 839 * (duty_ratio[i] > 0 ? 1 : -1);
+                duty_ratio[i] = 700 * (duty_ratio[i] > 0 ? 1 : -1);
             }
         }
-        cout << angles[0] << "\t" << angles[1] << endl;
+        //cout << angles[0] << "\t" << angles[1] << endl;
         r.setDuty(duty_ratio);
     }
 }
