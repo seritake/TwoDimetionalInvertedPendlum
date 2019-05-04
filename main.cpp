@@ -16,7 +16,7 @@
 #include <fstream>
 
 // comment out this line if no logs are needed.
-//#define CREATE_LOG
+#define CREATE_LOG
 
 // For debug
 #define PRINT_MAT(X) cout << #X << ":\n" << X << endl << endl
@@ -121,18 +121,18 @@ void calcJacob(Vector4d &x, double force, Matrix4d& Ad, double dt) {
     double s = sin(x[0]);
     tmp = l_cog * (M + m) - l_cog * m * c * c;
 
-    Ad << 1, dt, 0, 0,
+    Ad << 1.0, dt, 0, 0,
             dt *
             (x[1] * x[1] * l_cog * l_cog * m * c / tmp + 2.0 * g * l_cog * l_cog * m * m * s * s * c * c / tmp / tmp
              + g * l * m * (s * s - c * c) / tmp -
              2.0 * l_cog * l_cog * m * (force + x[1] * x[1] * l * m * s) * s * c / tmp / tmp),
-            2.0 * x[1] * dt * l_cog * l_cog * m * s / tmp + 1, 0, 0,
-            0, 0, 1, 0,
+            2.0 * x[1] * dt * l_cog * l_cog * m * s / tmp + 1.0, 0, 0,
+            0, 0, 1.0, 0,
             dt * (-x[1] * x[1] * l_cog * m * c * c / tmp - 2.0 * g * l_cog * m * (M + m) * s * s * c / tmp / tmp +
                   g * (M + m) * c / tmp
                   + 2.0 * l_cog * m * (force + x[1] * x[1] * l * m * s) * s * c * c / tmp / tmp +
                   (force + x[1] * x[1] * l * m * s) * s / tmp),
-            -2.0 * x[1] * dt * l_cog * m * s * c / tmp, 0, 1;
+            -2.0 * x[1] * dt * l_cog * m * s * c / tmp, 0, 1.0;
 }
 
 void predictNextState(Vector4d &x, double force, Matrix4d &P, Matrix4d &Ad, Matrix4d &Q, double dt) {
@@ -140,7 +140,10 @@ void predictNextState(Vector4d &x, double force, Matrix4d &P, Matrix4d &Ad, Matr
     double c = cos(x[0]);
     double s = sin(x[0]);
     double tmp = l_cog * (M + m) - l_cog * m * c * c;
-    double tmp2 = force + a[1] * a[1] * l_cog * m * s;
+    cout << "force: " << force << endl;
+    cout << "x[1]:" << x[1] << endl;
+    double tmp2 = force + x[1] * x[1] * l_cog * m * s;
+    cout << "tmp2:" << tmp2 << endl;
     x[0] = x_old[1] * dt + x_old[0];
     x[1] = x_old[1] + dt * (-g * l_cog * m * s * c + l_cog * tmp2) / tmp;
     x[2] = x_old[2];
@@ -157,7 +160,7 @@ void update(Vector4d& x, Matrix4d& P, Vector2d& y, Matrix<double, 2, 4>& Cd, Mat
 
 int main() {
     //r = Robot();
-    vector<int> cameraList = {3, 4, 5};//camerID 0 & 1
+    vector<int> cameraList = {1, 2, 3};//camerID 0 & 1
     vector<double> cameraAngle = {56, 56, 56}; //camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList, cameraAngle);
 
@@ -192,7 +195,8 @@ int main() {
     std::vector<int> duty_ratio(3);
     Matrix2d rotMatrix;
     Vector2d anglesVec;
-    Vector2d force;
+    std::vector<double> force = {0,0};
+
     Matrix4d Adx;
     Matrix4d Ady;
     double dt = 0.01;
@@ -204,11 +208,11 @@ int main() {
 
     Matrix4d Q;
     Matrix2d R;
-    Q << 0.001, 0, 0, 0,
-            0, 0.01, 0, 0,
-            0, 0, 0.01, 0,
+    Q << 0.01, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 0.001, 0,
             0, 0, 0, 0.1;
-    R << 0.001, 0, 0.001, 0;
+    R << 0.00001, 0, 0, 0.0001;
 
     Matrix<double, 2, 4> Cd;
     Cd << 1, 0, 1, 0, 0, 0, 0, 1;
@@ -232,16 +236,14 @@ int main() {
     while (true) {
         calcJacob(x, force[0], Adx, dt);
         calcJacob(y, force[1], Ady, dt);
+        //cout << "first" << endl;
+        //PRINT_MAT(x);
         predictNextState(x, force[0], Px, Adx, Q, dt);
+        //cout << "second" << endl;
+        //PRINT_MAT(x);
         predictNextState(y, force[1], Py, Ady, Q, dt);
         gettimeofday(&now_time, NULL);
-        dt = getDiffUs(now_time, pre_time) / 1000000;
-        double elapsed = getDiffUs(now_time, pre_time);
-        for (int i = 0; i < 2; i++) {
-            //cout << "elapsed:" << '\t' << elapsed << endl;
-            d_angles[i] = (angles[i] - pre_angles[i]) / elapsed * 1000;
-            pre_angles[i] = angles[i];
-        }
+        dt = getDiffUs(now_time, pre_time) / 1000000.0;
         pre_time = now_time;
 
 #ifdef CREATE_LOG
@@ -258,23 +260,25 @@ int main() {
 #endif
         //voltCalculator(duty_ratio, angles, d_angles, position, velocity);
         //vector<double> force_debug = calcForce(angles, d_angles);
-        vector<double> force = calcVoltage(calcForce({x[0], y[0]}, {x[1], y[1]}), r_inv);
-        //vector<double> force = calcVoltage({2, 0}, r_inv);
-
-        for (int i = 0; i <= 2; i++) {
-            duty_ratio[i] = (int) force[i] * 1500;
-            if (duty_ratio[i] >= 839 || duty_ratio[i] <= -839) {
-                cout << "DT Ratio is out of range.\n";
-                duty_ratio[i] = 550 * (duty_ratio[i] > 0 ? 1 : -1);
-            }
-        }
-        //cout << angles[0] << "\t" << angles[1] << endl;
-        r.setDuty(duty_ratio);
         velocity = r.getVelocity();
         angles = cameraHandler.getAngle();
         output << angles[0], velocity[0];
         update(x, Px, output, Cd, R);
+        //cout << "third" << endl;
+        //PRINT_MAT(x);
         output << angles[1], velocity[1];
         update(y, Py, output, Cd, R);
+        force = calcForce({x[0], y[0]}, {x[1], y[1]});
+        for (int i = 0; i < 2; i++) {
+            if (force[i] < -0.44 || force[i] > 0.44) {
+                force[i] = 0.44 * (force[i] < 0 ? -1 : 1);
+            }
+        }
+        vector<double> wheelForce = calcVoltage({force[0], force[1]}, r_inv);
+        //vector<double> force = calcVoltage({2, 0}, r_inv);
+        //cout << angles[0] << "\t" << angles[1] << endl;
+        //cout << wheelForce[0] << "," << wheelForce[1] << "," << wheelForce[2] << endl;
+        cout << velocity[0] << "," << velocity[1] << endl;
+        r.setForce(wheelForce);
     }
 }

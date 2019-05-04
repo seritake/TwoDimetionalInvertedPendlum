@@ -7,7 +7,7 @@
 #include "vector"
 
 const int TIM_MAX = 65536;
-const int WHEEL_RADIUS = 22;
+const double WHEEL_RADIUS = 22.0;
 const int COUNT_PER_ROTATE = 480;
 
 class Robot {
@@ -25,7 +25,6 @@ private:
         std::vector<double> selfCorVelocity;
         std::vector<double> position;
     } robotInfo;
-    void updateRobotInfo() const;
     void communicate();
     void writeDuty();
     void calcSpeed();
@@ -39,6 +38,7 @@ public:
     Robot(std::string& portPath);
     bool getConnected() const;
     void setDuty(const std::vector<int>& vec);
+    void setForce(const std::vector<double>& vec);
     const std::vector<double>& getVelocity() const;
     const std::vector<double>& getPosition() const;
 };

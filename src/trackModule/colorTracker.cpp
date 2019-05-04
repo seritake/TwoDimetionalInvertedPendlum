@@ -25,8 +25,8 @@ using std::vector;
 ColorTracker::ColorTracker(int cameraId) noexcept(false){
     this->cameraId = cameraId;
     this->cap = *new VideoCapture(cameraId);
-    this->cap.set(3,160);
-    this->cap.set(4,120);
+    this->cap.set(3,120);
+    this->cap.set(4,90);
 	if (this->cap.isOpened()) {
 		cout << "succeeded to allocate camera: " << this->cameraId << endl;
         this->width = (int) this->cap.get(cv::CAP_PROP_FRAME_WIDTH);

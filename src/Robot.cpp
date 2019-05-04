@@ -40,7 +40,7 @@ Robot::Robot() {
     this->targetDuty = {0,0,0};
     this->nextCount = {0,0,0,0};
     this->prevCount = {0,0,0,0};
-    this->mySerial = new serial::Serial("/dev/ttyACM1", 115200, serial::Timeout::simpleTimeout(1000));
+    this->mySerial = new serial::Serial("/dev/ttyACM0", 115200, serial::Timeout::simpleTimeout(1000));
     std::thread th(&Robot::communicate, this);
     th.detach();
 }
@@ -194,6 +194,20 @@ void Robot::setDuty(const std::vector<int>& vec) {
     this->targetDuty[0] = vec[0];
     this->targetDuty[1] = vec[2];
     this->targetDuty[2] = vec[1];
+}
+
+void Robot::setForce(const std::vector<double> &vec) {
+    std::vector<int> ans(3);
+    for (int i = 0; i < 3; i++) {
+        ans[i] = (int)(839.0 * (0.9 * this->robotInfo.wheelVelocity[i] / (WHEEL_RADIUS / 1000.0)
+                + 6.67 * vec[i] / (WHEEL_RADIUS / 1000.0) / 0.9) / 15.0);
+        std::cout << ans[i] << std::endl;
+        if (ans[i] >= 800 || ans[i] <= -800) {
+            std::cout << "out of range" << std::endl;
+            ans[i] = 800 * (ans[i] > 0 ? 1 : -1);
+        }
+    }
+    this->setDuty(ans);
 }
 
 const std::vector<double>& Robot::getVelocity() const {
