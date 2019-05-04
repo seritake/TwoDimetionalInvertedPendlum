@@ -8,6 +8,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/LU>
 #include "vector"
 #include <signal.h>
 #include <sstream>
@@ -73,20 +74,20 @@ Robot r;
 std::ofstream fout;
 #endif
 
-vector<double> calcForce(std::vector<double>& angle, std::vector<double>& angle_velocity) {
+vector<double> calcForce(std::vector<double>&& angle, std::vector<double>&& angle_velocity) {
     vector<double> e_b(2);
     e_b[0] = angle_velocity[0] + K1 * angle[0];
     e_b[1] = angle_velocity[1] + K1 * angle[1];
 
     vector<double> phi(2);
     phi[0] = m * angle_velocity[0] * angle_velocity[0] * sin(angle[0]) * cos(angle[0])
-            / (- l_cog *(M + m * sin(angle[0]) * sin(angle[0])));
+             / (-l_cog * (M + m * sin(angle[0]) * sin(angle[0])));
     phi[1] = m * angle_velocity[1] * angle_velocity[1] * sin(angle[1]) * cos(angle[1])
-             / (- l_cog *(M + m * sin(angle[1]) * sin(angle[1])));
+             / (-l_cog * (M + m * sin(angle[1]) * sin(angle[1])));
 
     vector<double> u(2);
-    u[0] = - l_cog * ((K1 + K2) * e_b[0] + (1 - K1 * K1)*angle[0] + phi[0]);
-    u[1] = - l_cog * ((K1 + K2) * e_b[1] + (1 - K1 * K1)*angle[1] + phi[1]);
+    u[0] = -l_cog * ((K1 + K2) * e_b[0] + (1 - K1 * K1) * angle[0] + phi[0]);
+    u[1] = -l_cog * ((K1 + K2) * e_b[1] + (1 - K1 * K1) * angle[1] + phi[1]);
 
     vector<double> f(2);
     f[0] = (M + m) * g * tan(angle[0]) - u[0] * (M + m * sin(angle[0]) * sin(angle[0])) / cos(angle[0]);
@@ -95,7 +96,7 @@ vector<double> calcForce(std::vector<double>& angle, std::vector<double>& angle_
     return f;
 }
 
-vector<double> calcVoltage(vector<double>&& force, const Matrix3d& r_inv) {
+vector<double> calcVoltage(vector<double> &&force, const Matrix3d &r_inv) {
     static Vector3d wheelForce;
     static Vector3d robotForce;
     robotForce << 0, force[0], force[1];
@@ -103,20 +104,61 @@ vector<double> calcVoltage(vector<double>&& force, const Matrix3d& r_inv) {
     return {wheelForce[0], wheelForce[1], wheelForce[2]};
 }
 
+
 void exitHandler(int s) {
-    printf("Caught signal %d\n",s);
-    r.setDuty({0,0,0});
+    printf("Caught signal %d\n", s);
+    r.setDuty({0, 0, 0});
     exit(1);
 }
 
-inline long getDiffUs(struct timeval& now, struct timeval& pre) {
+inline long getDiffUs(struct timeval &now, struct timeval &pre) {
     return (now.tv_sec - pre.tv_sec) * 1000000 + now.tv_usec - pre.tv_usec;
+}
+
+void calcJacob(Vector4d &x, double force, Matrix4d& Ad, double dt) {
+    static double tmp;
+    double c = cos(x[0]);
+    double s = sin(x[0]);
+    tmp = l_cog * (M + m) - l_cog * m * c * c;
+
+    Ad << 1, dt, 0, 0,
+            dt *
+            (x[1] * x[1] * l_cog * l_cog * m * c / tmp + 2.0 * g * l_cog * l_cog * m * m * s * s * c * c / tmp / tmp
+             + g * l * m * (s * s - c * c) / tmp -
+             2.0 * l_cog * l_cog * m * (force + x[1] * x[1] * l * m * s) * s * c / tmp / tmp),
+            2.0 * x[1] * dt * l_cog * l_cog * m * s / tmp + 1, 0, 0,
+            0, 0, 1, 0,
+            dt * (-x[1] * x[1] * l_cog * m * c * c / tmp - 2.0 * g * l_cog * m * (M + m) * s * s * c / tmp / tmp +
+                  g * (M + m) * c / tmp
+                  + 2.0 * l_cog * m * (force + x[1] * x[1] * l * m * s) * s * c * c / tmp / tmp +
+                  (force + x[1] * x[1] * l * m * s) * s / tmp),
+            -2.0 * x[1] * dt * l_cog * m * s * c / tmp, 0, 1;
+}
+
+void predictNextState(Vector4d &x, double force, Matrix4d &P, Matrix4d &Ad, Matrix4d &Q, double dt) {
+    Vector4d x_old = x;
+    double c = cos(x[0]);
+    double s = sin(x[0]);
+    double tmp = l_cog * (M + m) - l_cog * m * c * c;
+    double tmp2 = force + a[1] * a[1] * l_cog * m * s;
+    x[0] = x_old[1] * dt + x_old[0];
+    x[1] = x_old[1] + dt * (-g * l_cog * m * s * c + l_cog * tmp2) / tmp;
+    x[2] = x_old[2];
+    x[3] = x_old[3] + dt * (g * (M + m) * s - tmp2 * c) / tmp;
+
+    P = Ad * P * Ad.transpose() + Q;
+}
+
+void update(Vector4d& x, Matrix4d& P, Vector2d& y, Matrix<double, 2, 4>& Cd, Matrix2d& R) {
+    Matrix<double, 4, 2> K = P * Cd.transpose() * (Cd * P * Cd.transpose() + R).inverse();
+    x = x + K * (y - Cd * x);
+    P = (MatrixXd::Identity(4,4) - K * Cd) - P;
 }
 
 int main() {
     //r = Robot();
-    vector<int> cameraList = {3,4,5};//camerID 0 & 1
-    vector<double> cameraAngle = {56, 56,56}; //camera's angle of view. specify for 2 cameras
+    vector<int> cameraList = {3, 4, 5};//camerID 0 & 1
+    vector<double> cameraAngle = {56, 56, 56}; //camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList, cameraAngle);
 
     // handle SIGINT signal
@@ -150,11 +192,35 @@ int main() {
     std::vector<int> duty_ratio(3);
     Matrix2d rotMatrix;
     Vector2d anglesVec;
+    Vector2d force;
+    Matrix4d Adx;
+    Matrix4d Ady;
+    double dt = 0.01;
 
     Matrix3d r_inv;
     r_inv << 25.0 / 9.0, 0, 2.0 / 3.0,
-            25.0 / 9.0, - 1.0 / 3.0 * 1.73205 , - 1.0 / 3.0,
-            25.0 / 9.0, 1.0 / 3.0 * 1.73205 , - 1.0 / 3.0;
+            25.0 / 9.0, -1.0 / 3.0 * 1.73205, -1.0 / 3.0,
+            25.0 / 9.0, 1.0 / 3.0 * 1.73205, -1.0 / 3.0;
+
+    Matrix4d Q;
+    Matrix2d R;
+    Q << 0.001, 0, 0, 0,
+            0, 0.01, 0, 0,
+            0, 0, 0.01, 0,
+            0, 0, 0, 0.1;
+    R << 0.001, 0, 0.001, 0;
+
+    Matrix<double, 2, 4> Cd;
+    Cd << 1, 0, 1, 0, 0, 0, 0, 1;
+
+    Matrix4d Px = Q;
+    Matrix4d Py = Q;
+    Vector4d x;
+    Vector4d y;
+    x << 0, 0, 0, 0;
+    y << 0, 0, 0, 0;
+
+    Vector2d output;
 
     // expect to become faster when calling this function next time
     angles = cameraHandler.getAngle();
@@ -164,10 +230,12 @@ int main() {
     cin >> wait;
 
     while (true) {
-        position = r.getPosition();
-        velocity = r.getVelocity();
-        angles = cameraHandler.getAngle();
+        calcJacob(x, force[0], Adx, dt);
+        calcJacob(y, force[1], Ady, dt);
+        predictNextState(x, force[0], Px, Adx, Q, dt);
+        predictNextState(y, force[1], Py, Ady, Q, dt);
         gettimeofday(&now_time, NULL);
+        dt = getDiffUs(now_time, pre_time) / 1000000;
         double elapsed = getDiffUs(now_time, pre_time);
         for (int i = 0; i < 2; i++) {
             //cout << "elapsed:" << '\t' << elapsed << endl;
@@ -190,11 +258,11 @@ int main() {
 #endif
         //voltCalculator(duty_ratio, angles, d_angles, position, velocity);
         //vector<double> force_debug = calcForce(angles, d_angles);
-        vector<double> force = calcVoltage(calcForce(angles, d_angles), r_inv);
+        vector<double> force = calcVoltage(calcForce({x[0], y[0]}, {x[1], y[1]}), r_inv);
         //vector<double> force = calcVoltage({2, 0}, r_inv);
 
         for (int i = 0; i <= 2; i++) {
-            duty_ratio[i] = (int)force[i] * 1500;
+            duty_ratio[i] = (int) force[i] * 1500;
             if (duty_ratio[i] >= 839 || duty_ratio[i] <= -839) {
                 cout << "DT Ratio is out of range.\n";
                 duty_ratio[i] = 550 * (duty_ratio[i] > 0 ? 1 : -1);
@@ -202,5 +270,11 @@ int main() {
         }
         //cout << angles[0] << "\t" << angles[1] << endl;
         r.setDuty(duty_ratio);
+        velocity = r.getVelocity();
+        angles = cameraHandler.getAngle();
+        output << angles[0], velocity[0];
+        update(x, Px, output, Cd, R);
+        output << angles[1], velocity[1];
+        update(y, Py, output, Cd, R);
     }
 }
