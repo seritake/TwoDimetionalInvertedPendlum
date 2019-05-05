@@ -140,8 +140,8 @@ void predictNextState(Vector4d &x, double force, Matrix4d &P, Matrix4d &Ad, Matr
     double c = cos(x[0]);
     double s = sin(x[0]);
     double tmp = l_cog * (M + m) - l_cog * m * c * c;
-    cout << "force: " << force << endl;
-    cout << "x[1]:" << x[1] << endl;
+    //cout << "force: " << force << endl;
+    //cout << "x[1]:" << x[1] << endl;
     double tmp2 = force + x[1] * x[1] * l_cog * m * s;
     cout << "tmp2:" << tmp2 << endl;
     x[0] = x_old[1] * dt + x_old[0];
@@ -160,7 +160,7 @@ void update(Vector4d& x, Matrix4d& P, Vector2d& y, Matrix<double, 2, 4>& Cd, Mat
 
 int main() {
     //r = Robot();
-    vector<int> cameraList = {1, 2, 3};//camerID 0 & 1
+    vector<int> cameraList = {2, 3, 1};//camerID 0 & 1
     vector<double> cameraAngle = {56, 56, 56}; //camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList, cameraAngle);
 
@@ -278,7 +278,7 @@ int main() {
         //vector<double> force = calcVoltage({2, 0}, r_inv);
         //cout << angles[0] << "\t" << angles[1] << endl;
         //cout << wheelForce[0] << "," << wheelForce[1] << "," << wheelForce[2] << endl;
-        cout << velocity[0] << "," << velocity[1] << endl;
+        cout << "velocity: " << velocity[0] << "\t" << velocity[1] << endl;
         r.setForce(wheelForce);
     }
 }

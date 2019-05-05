@@ -78,8 +78,8 @@ void Robot::communicate() {
         /*std::cout << this->robotInfo.wheelVelocity[0] << "\t" << this->robotInfo.wheelVelocity[1]
         << "\t" << this->robotInfo.wheelVelocity[2] << std::endl;*/
         this->calcVelocityAndTheta();
-        this->calcWorldVelocity();
-        this->calcPosition();
+        //this->calcWorldVelocity();
+        //this->calcPosition();
     }
 }
 
@@ -201,9 +201,7 @@ void Robot::setForce(const std::vector<double> &vec) {
     for (int i = 0; i < 3; i++) {
         ans[i] = (int)(839.0 * (0.9 * this->robotInfo.wheelVelocity[i] / (WHEEL_RADIUS / 1000.0)
                 + 6.67 * vec[i] / (WHEEL_RADIUS / 1000.0) / 0.9) / 15.0);
-        std::cout << ans[i] << std::endl;
         if (ans[i] >= 800 || ans[i] <= -800) {
-            std::cout << "out of range" << std::endl;
             ans[i] = 800 * (ans[i] > 0 ? 1 : -1);
         }
     }
@@ -211,7 +209,7 @@ void Robot::setForce(const std::vector<double> &vec) {
 }
 
 const std::vector<double>& Robot::getVelocity() const {
-    return this->robotInfo.robotVelocity;
+    return this->robotInfo.selfCorVelocity;
 }
 
 const std::vector<double>& Robot::getPosition() const {
