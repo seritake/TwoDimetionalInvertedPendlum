@@ -278,7 +278,7 @@ int main() {
         //vector<double> force = calcVoltage({2, 0}, r_inv);
         //cout << angles[0] << "\t" << angles[1] << endl;
         //cout << wheelForce[0] << "," << wheelForce[1] << "," << wheelForce[2] << endl;
-        cout << "velocity: " << velocity[0] << "\t" << velocity[1] << endl;
+        //cout << "velocity: " << velocity[0] << "\t" << velocity[1] << endl;
         r.setForce(wheelForce);
     }
 }
