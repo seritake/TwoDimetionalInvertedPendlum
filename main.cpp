@@ -65,8 +65,8 @@ const static double k_phi[2] = {5, 5}; //need to be changed.
 
 // back stepping control
 const static double l_cog = 0.65;
-const static double K1 = 5.0;
-const static double K2 = 5.0;
+const static double K1 = 0.5;
+const static double K2 = 0.5;
 
 // declared as global variable for signal handling.
 Robot r;
