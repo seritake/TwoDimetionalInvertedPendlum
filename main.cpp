@@ -65,8 +65,8 @@ const static double k_phi[2] = {5, 5}; //need to be changed.
 
 // back stepping control
 const static double l_cog = 0.65;
-const static double K1 = 10;
-const static double K2 = 10;
+const static double K1 = 5.0;
+const static double K2 = 5.0;
 
 // declared as global variable for signal handling.
 Robot r;
@@ -74,16 +74,16 @@ Robot r;
 std::ofstream fout;
 #endif
 
-vector<double> calcForce(std::vector<double>&& angle, std::vector<double>&& angle_velocity) {
+vector<double> calcForce(std::vector<double> &&angle, std::vector<double> &&angle_velocity) {
     vector<double> e_b(2);
     e_b[0] = angle_velocity[0] + K1 * angle[0];
     e_b[1] = angle_velocity[1] + K1 * angle[1];
 
     vector<double> phi(2);
     phi[0] = m * angle_velocity[0] * angle_velocity[0] * sin(angle[0]) * cos(angle[0])
-             / (-l_cog * (M + m * sin(angle[0]) * sin(angle[0])));
+             / (-(M + m * sin(angle[0]) * sin(angle[0])));
     phi[1] = m * angle_velocity[1] * angle_velocity[1] * sin(angle[1]) * cos(angle[1])
-             / (-l_cog * (M + m * sin(angle[1]) * sin(angle[1])));
+             / (-(M + m * sin(angle[1]) * sin(angle[1])));
 
     vector<double> u(2);
     u[0] = -l_cog * ((K1 + K2) * e_b[0] + (1 - K1 * K1) * angle[0] + phi[0]);
@@ -115,24 +115,37 @@ inline long getDiffUs(struct timeval &now, struct timeval &pre) {
     return (now.tv_sec - pre.tv_sec) * 1000000 + now.tv_usec - pre.tv_usec;
 }
 
-void calcJacob(Vector4d &x, double force, Matrix4d& Ad, double dt) {
+void calcJacob(Vector4d &x, double force, Matrix4d &Ad, double dt) {
     static double tmp;
     double c = cos(x[0]);
     double s = sin(x[0]);
     tmp = l_cog * (M + m) - l_cog * m * c * c;
 
     Ad << 1.0, dt, 0, 0,
+            dt * (-x[1] * x[1] * l_cog * m * c * c / tmp - 2.0 * g * l_cog * m * (M + m) * s * s * c / tmp / tmp +
+                  g * (M + m) * c / tmp
+                  + 2.0 * l_cog * m * (force + x[1] * x[1] * l_cog * m * s) * s * c * c / tmp / tmp +
+                  (force + x[1] * x[1] * l_cog * m * s) * s / tmp), -2.0 * x[1] * dt * l_cog * m * s * c / tmp +
+                                                                    1.0, 0, 0,
+            0,0,1.0,0,
             dt *
             (x[1] * x[1] * l_cog * l_cog * m * c / tmp + 2.0 * g * l_cog * l_cog * m * m * s * s * c * c / tmp / tmp
-             + g * l * m * (s * s - c * c) / tmp -
-             2.0 * l_cog * l_cog * m * (force + x[1] * x[1] * l * m * s) * s * c / tmp / tmp),
+             + g * l_cog * m * (s * s - c * c) / tmp -
+             2.0 * l_cog * l_cog * m * (force + x[1] * x[1] * l_cog * m * s) * s * c / tmp / tmp),
+            2.0 * x[1] * dt * l_cog * l_cog * m * s / tmp, 0, 1;
+
+    /*Ad << 1.0, dt, 0, 0,
+            dt *
+            (x[1] * x[1] * l_cog * l_cog * m * c / tmp + 2.0 * g * l_cog * l_cog * m * m * s * s * c * c / tmp / tmp
+             + g * l_cog * m * (s * s - c * c) / tmp -
+             2.0 * l_cog * l_cog * m * (force + x[1] * x[1] * l_cog * m * s) * s * c / tmp / tmp),
             2.0 * x[1] * dt * l_cog * l_cog * m * s / tmp + 1.0, 0, 0,
             0, 0, 1.0, 0,
             dt * (-x[1] * x[1] * l_cog * m * c * c / tmp - 2.0 * g * l_cog * m * (M + m) * s * s * c / tmp / tmp +
                   g * (M + m) * c / tmp
-                  + 2.0 * l_cog * m * (force + x[1] * x[1] * l * m * s) * s * c * c / tmp / tmp +
-                  (force + x[1] * x[1] * l * m * s) * s / tmp),
-            -2.0 * x[1] * dt * l_cog * m * s * c / tmp, 0, 1.0;
+                  + 2.0 * l_cog * m * (force + x[1] * x[1] * l_cog * m * s) * s * c * c / tmp / tmp +
+                  (force + x[1] * x[1] * l_cog * m * s) * s / tmp),
+            -2.0 * x[1] * dt * l_cog * m * s * c / tmp, 0, 1.0;*/
 }
 
 void predictNextState(Vector4d &x, double force, Matrix4d &P, Matrix4d &Ad, Matrix4d &Q, double dt) {
@@ -140,22 +153,27 @@ void predictNextState(Vector4d &x, double force, Matrix4d &P, Matrix4d &Ad, Matr
     double c = cos(x[0]);
     double s = sin(x[0]);
     double tmp = l_cog * (M + m) - l_cog * m * c * c;
-    //cout << "force: " << force << endl;
-    //cout << "x[1]:" << x[1] << endl;
-    double tmp2 = force + x[1] * x[1] * l_cog * m * s;
-    cout << "tmp2:" << tmp2 << endl;
+    /*cout << "sin: " << s << endl;
+    cout << "cos: " << c << endl;
+    cout << "dt: " << dt << endl;
+    cout << "tmp: " << tmp << endl;
+    cout << "force: " << force << endl;
+    cout << "x[1]: " << x[1] << endl;
+    cout << "x_old[1]: " << x_old[1] << endl;*/
+    double tmp2 = force + x_old[1] * x_old[1] * l_cog * m * s;
+    //cout << "tmp2: " << tmp2 << endl;
     x[0] = x_old[1] * dt + x_old[0];
-    x[1] = x_old[1] + dt * (-g * l_cog * m * s * c + l_cog * tmp2) / tmp;
+    x[1] = x_old[1] + dt * (g * (M + m) * s - tmp2 * c) / tmp;
     x[2] = x_old[2];
-    x[3] = x_old[3] + dt * (g * (M + m) * s - tmp2 * c) / tmp;
+    x[3] = x_old[3] + dt * (-g * l_cog * m * s * c + l_cog * tmp2) / tmp;
 
     P = Ad * P * Ad.transpose() + Q;
 }
 
-void update(Vector4d& x, Matrix4d& P, Vector2d& y, Matrix<double, 2, 4>& Cd, Matrix2d& R) {
+void update(Vector4d &x, Matrix4d &P, Vector2d &y, Matrix<double, 2, 4> &Cd, Matrix2d &R) {
     Matrix<double, 4, 2> K = P * Cd.transpose() * (Cd * P * Cd.transpose() + R).inverse();
     x = x + K * (y - Cd * x);
-    P = (MatrixXd::Identity(4,4) - K * Cd) - P;
+    P = (MatrixXd::Identity(4, 4) - K * Cd) * P;
 }
 
 int main() {
@@ -176,17 +194,17 @@ int main() {
 #ifdef CREATE_LOG
     // prepare for logs
     fout.open("../logs/log.csv");
-    fout << "time,robot_position_x,robot_position_y,robot_position_w,robot_velocity_x,robot_velocity_y,robot_velocity_w,";
-    fout << "angle_alpha,angle_beta,angle_dd_alpha,angle_dd_beta,dd_y_x,dd_x_y,s0_x,s0_y,s1_x,s1_y,f_x,f_y,u_1,u_2,u_3" << endl;
+    fout << "time,velocity_x,velocity_y,angle_x,angle_y,";
+    fout << "x_p_0,x_p_1,x_p_2,x_p_3,y_p_0,y_p_1,y_p_2,y_p_3,";
+    fout << "x_u_0,x_u_1,x_u_2,x_u_3,y_u_0,y_u_1,y_u_2,y_u_3,";
+    fout << "f_x,f_y" << endl;
 
     struct timeval first_time;
     bool firstFlag = true;
 #endif
 
     struct timeval pre_time, now_time;
-    gettimeofday(&pre_time, NULL);
 
-    std::vector<double> position(3);
     std::vector<double> velocity(3);
     Vector2d tmpPoint;
     std::vector<double> angles(2);
@@ -195,7 +213,7 @@ int main() {
     std::vector<int> duty_ratio(3);
     Matrix2d rotMatrix;
     Vector2d anglesVec;
-    std::vector<double> force = {0,0};
+    std::vector<double> force = {0, 0};
 
     Matrix4d Adx;
     Matrix4d Ady;
@@ -232,7 +250,14 @@ int main() {
     int wait;
     cout << "waiting for input...";
     cin >> wait;
-
+    for (int i = 0; i < 5; i++) {
+        angles = cameraHandler.getAngle();
+        velocity = r.getVelocity();
+    }
+    angles = cameraHandler.getAngle();
+    x[0] = angles[0];
+    y[0] = angles[0];
+    gettimeofday(&pre_time, NULL);
     while (true) {
         calcJacob(x, force[0], Adx, dt);
         calcJacob(y, force[1], Ady, dt);
@@ -245,7 +270,6 @@ int main() {
         gettimeofday(&now_time, NULL);
         dt = getDiffUs(now_time, pre_time) / 1000000.0;
         pre_time = now_time;
-
 #ifdef CREATE_LOG
         static int count = 0;
         if (firstFlag) {
@@ -253,10 +277,9 @@ int main() {
             firstFlag = false;
         }
         // using integer timestamp is often convenient when processing log
-        fout << getDiffUs(now_time, first_time) << "," << position[0] << "," << position[1] << "," << position[2]
-             << "," << velocity[0] << "," << velocity[1] << "," << velocity[2] << "," << angles[0]*10 << "," << angles[1]*10 << ","
-             << d_angles[0] << "," << d_angles[1] << ",";
-        // todo: add input variables to log target
+        fout << getDiffUs(now_time, first_time) << "," << velocity[0] << "," << velocity[1]
+             << "," << angles[0] << "," << angles[1] << "," << x[0] << "," << x[1] << "," << x[2]
+             << "," << x[3] << "," << y[0] << "," << y[1] << "," << y[2] << "," << y[3] << ",";
 #endif
         //voltCalculator(duty_ratio, angles, d_angles, position, velocity);
         //vector<double> force_debug = calcForce(angles, d_angles);
@@ -269,16 +292,22 @@ int main() {
         output << angles[1], velocity[1];
         update(y, Py, output, Cd, R);
         force = calcForce({x[0], y[0]}, {x[1], y[1]});
+        vector<double> wheelForce = calcVoltage({force[0], force[1]}, r_inv);
         for (int i = 0; i < 2; i++) {
-            if (force[i] < -0.44 || force[i] > 0.44) {
-                force[i] = 0.44 * (force[i] < 0 ? -1 : 1);
+            if (wheelForce[i] < -0.43 || wheelForce[i] > 0.43) {
+                wheelForce[i] = 0.43 * (wheelForce[i] < 0 ? -1 : 1);
+                //cout << "out" << endl;
             }
         }
-        vector<double> wheelForce = calcVoltage({force[0], force[1]}, r_inv);
+        r.setForce(wheelForce);
+#ifdef CREATE_LOG
+        fout << x[0] << "," << x[1] << "," << x[2] << "," << x[3] << ","
+             << y[0] << "," << y[1] << "," << y[2] << "," << y[3] << ","
+             << force[0] << "," << force[1] << endl;
+#endif
         //vector<double> force = calcVoltage({2, 0}, r_inv);
-        //cout << angles[0] << "\t" << angles[1] << endl;
+        cout << angles[0] << "\t" << angles[1] << endl;
         //cout << wheelForce[0] << "," << wheelForce[1] << "," << wheelForce[2] << endl;
         //cout << "velocity: " << velocity[0] << "\t" << velocity[1] << endl;
-        r.setForce(wheelForce);
     }
 }

@@ -9,7 +9,7 @@
 #include <eigen3/Eigen/LU>
 #include "vector"
 
-#define FOCUS 400
+#define FOCUS 750
 #define CENTER_X 160
 #define CENTER_Y 120
 #define ROBOT_RADIUS 10
@@ -53,26 +53,39 @@ CameraHandler::CameraHandler(const vector<int> cameraList,const vector<double> c
 }
 
 vector<double> CameraHandler::getAngle(){
-    Matrix<double, 6, 3> B;
-    Matrix<double, 6, 1> b;
     vector<Point2d> points(3);
+    Matrix<double, 6, 3> B_tmp;
+    Matrix<double, 6, 1> b_tmp;
+    Matrix<double, Eigen::Dynamic, 3> B;
+    Matrix<double, Eigen::Dynamic, 1> b;
+    int count = 0;
+    vector<int> valid(3);
     for (auto i = 0; i < this->colorTrackers.capacity(); i++) {
         try {
+            valid[count] = i;
+            count++;
             points[i] = this->colorTrackers[i].predict(rangeRed);
         } catch (exception &e) {
-            return {0, 0};
+            points[i] = {0,0};
         }
     }
-    b << CAMERA_HEIGHT * (CENTER_X - points[0].x), -FOCUS * ROBOT_RADIUS + CAMERA_HEIGHT * (CENTER_Y - points[0].y),
+    b_tmp << CAMERA_HEIGHT * (CENTER_X - points[0].x), -FOCUS * ROBOT_RADIUS + CAMERA_HEIGHT * (CENTER_Y - points[0].y),
             CAMERA_HEIGHT * (CENTER_X - points[1].x), -FOCUS * ROBOT_RADIUS + CAMERA_HEIGHT * (CENTER_Y - points[1].y),
             CAMERA_HEIGHT * (CENTER_X - points[2].x), -FOCUS * ROBOT_RADIUS + CAMERA_HEIGHT * (CENTER_Y - points[2].y);
-    B << 0, -FOCUS, -CENTER_X + points[0].x,
+    B_tmp << 0, -FOCUS, -CENTER_X + points[0].x,
             FOCUS, 0, -CENTER_Y + points[0].y,
             1.73205 / 2 * FOCUS, 0.5 * FOCUS, -CENTER_X + points[1].x,
             -0.5 * FOCUS, 1.73205 / 2 * FOCUS, -CENTER_Y + points[1].y,
             -1.73205 / 2 * FOCUS, 0.5 * FOCUS, -CENTER_X + points[2].x,
             -0.5 * FOCUS, -1.73205 / 2 * FOCUS, -CENTER_Y + points[2].y;
-
+    B.resize(count*2, 3);
+    b.resize(count*2, 1);
+    for (int i = 0; i < count; i++) {
+        B.row(2*i) = B_tmp.row(2*valid[i]);
+        B.row(2*i+1) = B_tmp.row(2*valid[i]+1);
+        b.row(2*i) = b_tmp.row(2*valid[i]);
+        b.row(2*i+1) = b_tmp.row(2*valid[i]+1);
+    }
     FullPivLU<Matrix3d> lu(B.transpose() * B);
     Vector3d x = lu.solve(-B.transpose() * b);
     /*vector<future<Point2d>> futures;
@@ -95,5 +108,5 @@ vector<double> CameraHandler::getAngle(){
             result.push_back(0);
         }
     }*/
-    return {std::atan(x[0] / x[2]), std::atan(x[1] / x[2])};
+    return {std::atan(x[0] / x[2])*3.0 + 0.1, std::atan(x[1] / x[2])*3.0};
 }
