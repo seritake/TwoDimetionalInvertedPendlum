@@ -64,9 +64,9 @@ const static double b[2] = {K_t / (2.0 * R_w * M_t * R_a), K_t * L_c / (R_w * I_
 const static double k_phi[2] = {5, 5}; //need to be changed.
 
 // back stepping control
-const static double l_cog = 0.65;
-const static double K1 = 10;
-const static double K2 = 10;
+const static double l_cog = 0.77;
+const static double K1 = 2.3;
+const static double K2 = 2.3;
 
 // declared as global variable for signal handling.
 Robot r;
@@ -176,7 +176,7 @@ void update(Vector3d &x, Matrix3d &P, Vector2d &y, Matrix<double, 2, 3> &Cd, Mat
 
 int main() {
     //r = Robot();
-    vector<int> cameraList = {2, 3, 1};//camerID 0 & 1
+    vector<int> cameraList = {1, 2, 3};//camerID 0 & 1
     vector<double> cameraAngle = {56, 56, 56}; //camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList, cameraAngle);
 
@@ -224,9 +224,9 @@ int main() {
 
     Matrix3d Q;
     Matrix2d R;
-    Q << 0.01, 0, 0,
-            0, 1, 0,
-            0, 0, 0.1;
+    Q << 0.001, 0, 0,
+            0, 0.0001, 0,
+            0, 0, 0.01;
     R << 0.00001, 0, 0, 0.0001;
 
     Matrix<double, 2, 3> Cd;
@@ -276,7 +276,7 @@ int main() {
         // using integer timestamp is often convenient when processing log
         fout << getDiffUs(now_time, first_time) << "," << velocity[0] << "," << velocity[1]
              << "," << angles[0] << "," << angles[1] << "," << x[0] << "," << x[1] << "," << x[2]
-             << "," << "," << y[0] << "," << y[1] << "," << y[2] << "," << ",";
+             << "," << y[0] << "," << y[1] << "," << y[2] << "," ;
 #endif
         //voltCalculator(duty_ratio, angles, d_angles, position, velocity);
         //vector<double> force_debug = calcForce(angles, d_angles);
@@ -290,9 +290,15 @@ int main() {
         update(y, Py, output, Cd, R);
         force = calcForce({x[0], y[0]}, {x[1], y[1]});
         vector<double> wheelForce = calcVoltage({force[0], force[1]}, r_inv);
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 3; i++) {
             if (wheelForce[i] < -0.43 || wheelForce[i] > 0.43) {
                 wheelForce[i] = 0.43 * (wheelForce[i] < 0 ? -1 : 1);
+                //cout << "out" << endl;
+            }
+        }
+        for (int i = 0; i < 2; i++) {
+            if (force[i] < -0.43 || force[i] > 0.43) {
+                force[i] = 0.43 * (force[i] < 0 ? -1 : 1);
                 //cout << "out" << endl;
             }
         }
