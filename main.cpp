@@ -170,7 +170,7 @@ void predictNextState(Vector4d &x, double force, Matrix4d &P, Matrix4d &Ad, Matr
     P = Ad * P * Ad.transpose() + Q;
 }
 
-void update(Vector4d &x, Matrix4d &P, Vector4d &y, Matrix<double, 3, 4> &Cd, Matrix3d &R) {
+void update(Vector4d &x, Matrix4d &P, Vector3d &y, Matrix<double, 3, 4> &Cd, Matrix3d &R) {
     Matrix<double, 4, 3> K = P * Cd.transpose() * (Cd * P * Cd.transpose() + R).inverse();
     x = x + K * (y - Cd * x);
     P = (MatrixXd::Identity(4, 4) - K * Cd) * P;
