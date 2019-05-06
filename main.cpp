@@ -168,8 +168,8 @@ void predictNextState(Vector3d &x, double force, Matrix3d &P, Matrix3d &Ad, Matr
     P = Ad * P * Ad.transpose() + Q;
 }
 
-void update(Vector3d &x, Matrix3d &P, Vector2d &y, Matrix<double, 2, 3> &Cd, Matrix2d &R) {
-    Matrix<double, 3, 2> K = P * Cd.transpose() * (Cd * P * Cd.transpose() + R).inverse();
+void update(Vector3d &x, Matrix3d &P, Vector3d &y, Matrix3d &Cd, Matrix3d &R) {
+    Matrix3d K = P * Cd.transpose() * (Cd * P * Cd.transpose() + R).inverse();
     x = x + K * (y - Cd * x);
     P = (MatrixXd::Identity(3, 3) - K * Cd) * P;
 }
@@ -223,14 +223,18 @@ int main() {
             25.0 / 9.0, 1.0 / 3.0 * 1.73205, -1.0 / 3.0;
 
     Matrix3d Q;
-    Matrix2d R;
+    Matrix3d R;
     Q << 0.001, 0, 0,
             0, 0.0001, 0,
             0, 0, 0.01;
-    R << 0.00001, 0, 0, 0.0001;
+    R << 0.00001, 0, 0,
+            0, 0.0001, 0,
+            0, 0, 0.0001;
 
-    Matrix<double, 2, 3> Cd;
-    Cd << 1, 0, 0, 0, 0, 1;
+    Matrix3d Cd;
+    Cd << 1, 0, 0,
+            0, 1, 0,
+            0, 0, 1;
 
     Matrix3d Px = Q;
     Matrix3d Py = Q;
@@ -239,7 +243,7 @@ int main() {
     x << 0, 0, 0;
     y << 0, 0, 0;
 
-    Vector2d output;
+    Vector3d output;
 
     // expect to become faster when calling this function next time
     angles = cameraHandler.getAngle();
@@ -276,17 +280,21 @@ int main() {
         // using integer timestamp is often convenient when processing log
         fout << getDiffUs(now_time, first_time) << "," << velocity[0] << "," << velocity[1]
              << "," << angles[0] << "," << angles[1] << "," << x[0] << "," << x[1] << "," << x[2]
-             << "," << y[0] << "," << y[1] << "," << y[2] << "," ;
+             << "," << y[0] << "," << y[1] << "," << y[2] << ",";
 #endif
         //voltCalculator(duty_ratio, angles, d_angles, position, velocity);
         //vector<double> force_debug = calcForce(angles, d_angles);
         velocity = r.getVelocity();
+        pre_angles = angles;
         angles = cameraHandler.getAngle();
-        output << angles[0], velocity[0];
+        for (int i = 0; i < 2; i++) {
+            d_angles[i] = (angles[i] - pre_angles[i]) / dt;
+        }
+        output << angles[0], d_angles, velocity[0];
         update(x, Px, output, Cd, R);
         //cout << "third" << endl;
         //PRINT_MAT(x);
-        output << angles[1], velocity[1];
+        output << angles[1], d_angles, velocity[1];
         update(y, Py, output, Cd, R);
         force = calcForce({x[0], y[0]}, {x[1], y[1]});
         vector<double> wheelForce = calcVoltage({force[0], force[1]}, r_inv);
