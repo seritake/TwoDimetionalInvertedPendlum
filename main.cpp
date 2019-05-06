@@ -64,9 +64,9 @@ const static double b[2] = {K_t / (2.0 * R_w * M_t * R_a), K_t * L_c / (R_w * I_
 const static double k_phi[2] = {5, 5}; //need to be changed.
 
 // back stepping control
-const static double l_cog = 0.77;
-const static double K1 = 2.3;
-const static double K2 = 2.3;
+const static double l_cog = 0.69;
+const static double K1 = 82;
+const static double K2 = 82;
 
 // declared as global variable for signal handling.
 Robot r;
@@ -229,7 +229,7 @@ int main() {
             0, 0, 0.01;
     R << 0.00001, 0, 0,
             0, 0.0001, 0,
-            0, 0, 0.0001;
+            0, 0, 0.5;
 
     Matrix3d Cd;
     Cd << 1, 0, 0,
@@ -290,23 +290,23 @@ int main() {
         for (int i = 0; i < 2; i++) {
             d_angles[i] = (angles[i] - pre_angles[i]) / dt;
         }
-        output << angles[0], d_angles, velocity[0];
+        output << angles[0], d_angles[0], velocity[0];
         update(x, Px, output, Cd, R);
         //cout << "third" << endl;
         //PRINT_MAT(x);
-        output << angles[1], d_angles, velocity[1];
+        output << angles[1], d_angles[1], velocity[1];
         update(y, Py, output, Cd, R);
         force = calcForce({x[0], y[0]}, {x[1], y[1]});
         vector<double> wheelForce = calcVoltage({force[0], force[1]}, r_inv);
         for (int i = 0; i < 3; i++) {
-            if (wheelForce[i] < -0.43 || wheelForce[i] > 0.43) {
-                wheelForce[i] = 0.43 * (wheelForce[i] < 0 ? -1 : 1);
+            if (wheelForce[i] < -100 || wheelForce[i] > 100) {
+                wheelForce[i] = 100 * (wheelForce[i] < 0 ? -1 : 1);
                 //cout << "out" << endl;
             }
         }
         for (int i = 0; i < 2; i++) {
-            if (force[i] < -0.43 || force[i] > 0.43) {
-                force[i] = 0.43 * (force[i] < 0 ? -1 : 1);
+            if (force[i] < -100 || force[i] > 100) {
+                force[i] = 100 * (force[i] < 0 ? -1 : 1);
                 //cout << "out" << endl;
             }
         }
