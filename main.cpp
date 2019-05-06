@@ -115,23 +115,24 @@ inline long getDiffUs(struct timeval &now, struct timeval &pre) {
     return (now.tv_sec - pre.tv_sec) * 1000000 + now.tv_usec - pre.tv_usec;
 }
 
-void calcJacob(Vector3d &x, double force, Matrix3d &Ad, double dt) {
+void calcJacob(Vector4d &x, double force, Matrix4d &Ad, double dt) {
     static double tmp;
     double c = cos(x[0]);
     double s = sin(x[0]);
     tmp = l_cog * (M + m) - l_cog * m * c * c;
 
-    Ad << 1.0, dt, 0,
+    Ad << 1.0, dt, 0, 0,
             dt * (-x[1] * x[1] * l_cog * m * c * c / tmp - 2.0 * g * l_cog * m * (M + m) * s * s * c / tmp / tmp +
                   g * (M + m) * c / tmp
                   + 2.0 * l_cog * m * (force + x[1] * x[1] * l_cog * m * s) * s * c * c / tmp / tmp +
                   (force + x[1] * x[1] * l_cog * m * s) * s / tmp), -2.0 * x[1] * dt * l_cog * m * s * c / tmp +
-                                                                    1.0, 0,
+                                                                    1.0, 0, 0,
+            0, 0, 1.0, 0,
             dt *
             (x[1] * x[1] * l_cog * l_cog * m * c / tmp + 2.0 * g * l_cog * l_cog * m * m * s * s * c * c / tmp / tmp
              + g * l_cog * m * (s * s - c * c) / tmp -
              2.0 * l_cog * l_cog * m * (force + x[1] * x[1] * l_cog * m * s) * s * c / tmp / tmp),
-            2.0 * x[1] * dt * l_cog * l_cog * m * s / tmp, 1;
+            2.0 * x[1] * dt * l_cog * l_cog * m * s / tmp, 0, 1;
 
     /*Ad << 1.0, dt, 0, 0,
             dt *
@@ -147,8 +148,8 @@ void calcJacob(Vector3d &x, double force, Matrix3d &Ad, double dt) {
             -2.0 * x[1] * dt * l_cog * m * s * c / tmp, 0, 1.0;*/
 }
 
-void predictNextState(Vector3d &x, double force, Matrix3d &P, Matrix3d &Ad, Matrix3d &Q, double dt) {
-    Vector3d x_old = x;
+void predictNextState(Vector4d &x, double force, Matrix4d &P, Matrix4d &Ad, Matrix4d &Q, double dt) {
+    Vector4d x_old = x;
     double c = cos(x[0]);
     double s = sin(x[0]);
     double tmp = l_cog * (M + m) - l_cog * m * c * c;
@@ -163,15 +164,16 @@ void predictNextState(Vector3d &x, double force, Matrix3d &P, Matrix3d &Ad, Matr
     //cout << "tmp2: " << tmp2 << endl;
     x[0] = x_old[1] * dt + x_old[0];
     x[1] = x_old[1] + dt * (g * (M + m) * s - tmp2 * c) / tmp;
-    x[2] = x_old[2] + dt * (-g * l_cog * m * s * c + l_cog * tmp2) / tmp;
+    x[2] = x_old[2];
+    x[3] = x_old[3] + dt * (-g * l_cog * m * s * c + l_cog * tmp2) / tmp;
 
     P = Ad * P * Ad.transpose() + Q;
 }
 
-void update(Vector3d &x, Matrix3d &P, Vector3d &y, Matrix3d &Cd, Matrix3d &R) {
-    Matrix3d K = P * Cd.transpose() * (Cd * P * Cd.transpose() + R).inverse();
+void update(Vector4d &x, Matrix4d &P, Vector4d &y, Matrix<double, 3, 4> &Cd, Matrix3d &R) {
+    Matrix<double, 4, 3> K = P * Cd.transpose() * (Cd * P * Cd.transpose() + R).inverse();
     x = x + K * (y - Cd * x);
-    P = (MatrixXd::Identity(3, 3) - K * Cd) * P;
+    P = (MatrixXd::Identity(4, 4) - K * Cd) * P;
 }
 
 int main() {
@@ -193,8 +195,8 @@ int main() {
     // prepare for logs
     fout.open("../logs/log.csv");
     fout << "time,velocity_x,velocity_y,angle_x,angle_y,";
-    fout << "x_p_0,x_p_1,x_p_2,y_p_0,y_p_1,y_p_2,";
-    fout << "x_u_0,x_u_1,x_u_2,y_u_0,y_u_1,y_u_2,";
+    fout << "x_p_0,x_p_1,x_p_2,x_p_3,y_p_0,y_p_1,y_p_2,y_p_3,";
+    fout << "x_u_0,x_u_1,x_u_2,x_u_3,y_u_0,y_u_1,y_u_2,y_u_3,";
     fout << "f_x,f_y" << endl;
 
     struct timeval first_time;
@@ -213,8 +215,8 @@ int main() {
     Vector2d anglesVec;
     std::vector<double> force = {0, 0};
 
-    Matrix3d Adx;
-    Matrix3d Ady;
+    Matrix4d Adx;
+    Matrix4d Ady;
     double dt = 0.01;
 
     Matrix3d r_inv;
@@ -222,26 +224,27 @@ int main() {
             25.0 / 9.0, -1.0 / 3.0 * 1.73205, -1.0 / 3.0,
             25.0 / 9.0, 1.0 / 3.0 * 1.73205, -1.0 / 3.0;
 
-    Matrix3d Q;
+    Matrix4d Q;
     Matrix3d R;
-    Q << 0.001, 0, 0,
-            0, 0.0001, 0,
-            0, 0, 0.01;
+    Q << 0.001, 0, 0, 0,
+            0, 0.0001, 0, 0,
+            0, 0, 0.01, 0,
+            0, 0, 0, 0.1;
     R << 0.00001, 0, 0,
-            0, 0.0001, 0,
+            0, 0.001, 0,
             0, 0, 0.5;
 
-    Matrix3d Cd;
-    Cd << 1, 0, 0,
-            0, 1, 0,
-            0, 0, 1;
+    Matrix<double, 3, 4> Cd;
+    Cd << 1, 0, 1, 0,
+            0, 1, 0, 0,
+            0, 0, 0, 1;
 
-    Matrix3d Px = Q;
-    Matrix3d Py = Q;
-    Vector3d x;
-    Vector3d y;
-    x << 0, 0, 0;
-    y << 0, 0, 0;
+    Matrix4d Px = Q;
+    Matrix4d Py = Q;
+    Vector4d x;
+    Vector4d y;
+    x << 0, 0, 0, 0;
+    y << 0, 0, 0, 0;
 
     Vector3d output;
 
@@ -279,8 +282,8 @@ int main() {
         }
         // using integer timestamp is often convenient when processing log
         fout << getDiffUs(now_time, first_time) << "," << velocity[0] << "," << velocity[1]
-             << "," << angles[0] << "," << angles[1] << "," << x[0] << "," << x[1] << "," << x[2]
-             << "," << y[0] << "," << y[1] << "," << y[2] << ",";
+             << "," << angles[0] << "," << angles[1] << "," << x[0] << "," << x[1] << "," << x[2] << "," << x[3]
+             << "," << y[0] << "," << y[1] << "," << y[2] << "," << y[3] << ",";
 #endif
         //voltCalculator(duty_ratio, angles, d_angles, position, velocity);
         //vector<double> force_debug = calcForce(angles, d_angles);
@@ -312,8 +315,8 @@ int main() {
         }
         r.setForce(wheelForce);
 #ifdef CREATE_LOG
-        fout << x[0] << "," << x[1] << "," << x[2] << ","
-             << y[0] << "," << y[1] << "," << y[2] << ","
+        fout << x[0] << "," << x[1] << "," << x[2] << "," << x[3] << ","
+             << y[0] << "," << y[1] << "," << y[2] << "," << y[3] << ","
              << force[0] << "," << force[1] << endl;
 #endif
         //vector<double> force = calcVoltage({2, 0}, r_inv);
