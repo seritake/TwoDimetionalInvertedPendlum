@@ -9,11 +9,11 @@
 #include <eigen3/Eigen/LU>
 #include "vector"
 
-#define FOCUS 750
-#define CENTER_X 160
-#define CENTER_Y 120
-#define ROBOT_RADIUS 10
-#define CAMERA_HEIGHT 4
+#define FOCUS 600.0
+#define CENTER_X 160.0
+#define CENTER_Y 120.0
+#define ROBOT_RADIUS 10.7
+#define CAMERA_HEIGHT 4.0
 
 // For debug
 #define PRINT_MAT(X) cout << #X << ":\n" << X << endl << endl
@@ -63,8 +63,8 @@ vector<double> CameraHandler::getAngle(){
     for (auto i = 0; i < this->colorTrackers.capacity(); i++) {
         try {
             valid[count] = i;
-            count++;
             points[i] = this->colorTrackers[i].predict(rangeRed);
+            count++;
         } catch (exception &e) {
             points[i] = {0,0};
         }
@@ -84,8 +84,10 @@ vector<double> CameraHandler::getAngle(){
         B.row(2*i) = B_tmp.row(2*valid[i]);
         B.row(2*i+1) = B_tmp.row(2*valid[i]+1);
         b.row(2*i) = b_tmp.row(2*valid[i]);
-        b.row(2*i+1) = b_tmp.row(2*valid[i]+1);
+        b.row(2*i + 1) = b_tmp.row(2*valid[i] + 1);
     }
+    //PRINT_MAT(B);
+    //PRINT_MAT(b);
     FullPivLU<Matrix3d> lu(B.transpose() * B);
     Vector3d x = lu.solve(-B.transpose() * b);
     /*vector<future<Point2d>> futures;
@@ -108,5 +110,7 @@ vector<double> CameraHandler::getAngle(){
             result.push_back(0);
         }
     }*/
-    return {std::atan(x[0] / x[2])*3.0 + 0.022, std::atan(x[1] / x[2])*3.0};
+    //cout << "x: " << x[0] << "y: " << x[1] << "z: " << x[2] << endl;
+
+    return {std::atan((x[0]+1.3) / x[2])*3.0, std::atan((x[1]-0.5) / x[2])*3.0};
 }

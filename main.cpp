@@ -65,8 +65,8 @@ const static double k_phi[2] = {5, 5}; //need to be changed.
 
 // back stepping control
 const static double l_cog = 0.69;
-const static double K1 = 82;
-const static double K2 = 82;
+const static double K1 = 3.5;
+const static double K2 = 3.5;
 
 // declared as global variable for signal handling.
 Robot r;
@@ -258,6 +258,7 @@ int main() {
     angles = cameraHandler.getAngle();
     x[0] = angles[0];
     y[0] = angles[0];
+    pre_angles = angles;
     gettimeofday(&pre_time, NULL);
     while (true) {
         calcJacob(x, force[0], Adx, dt);
@@ -298,15 +299,15 @@ int main() {
         update(y, Py, output, Cd, R);
         force = calcForce({x[0], y[0]}, {x[1], y[1]});
         vector<double> wheelForce = calcVoltage({force[0], force[1]}, r_inv);
-        for (int i = 0; i < 3; i++) {
-            if (wheelForce[i] < -100 || wheelForce[i] > 100) {
-                wheelForce[i] = 100 * (wheelForce[i] < 0 ? -1 : 1);
+        for (int i = 0; i < 2; i++) {
+            if (force[i] < -14 || force[i] > 14) {
+                force[i] = 14 * (force[i] < 0 ? -1 : 1);
                 //cout << "out" << endl;
             }
         }
-        for (int i = 0; i < 2; i++) {
-            if (force[i] < -100 || force[i] > 100) {
-                force[i] = 100 * (force[i] < 0 ? -1 : 1);
+        for (int i = 0; i < 3; i++) {
+            if (wheelForce[i] < -14 || wheelForce[i] > 14) {
+                wheelForce[i] = 14 * (wheelForce[i] < 0 ? -1 : 1);
                 //cout << "out" << endl;
             }
         }
@@ -317,7 +318,7 @@ int main() {
              << force[0] << "," << force[1] << endl;
 #endif
         //vector<double> force = calcVoltage({2, 0}, r_inv);
-        cout << angles[0] << "\t" << angles[1] << endl;
+        //cout << angles[0] << "\t" << angles[1] << endl;
         //cout << wheelForce[0] << "," << wheelForce[1] << "," << wheelForce[2] << endl;
         //cout << "velocity: " << velocity[0] << "\t" << velocity[1] << endl;
     }
