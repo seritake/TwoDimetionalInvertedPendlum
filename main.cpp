@@ -64,9 +64,9 @@ const static double b[2] = {K_t / (2.0 * R_w * M_t * R_a), K_t * L_c / (R_w * I_
 const static double k_phi[2] = {5, 5}; //need to be changed.
 
 // back stepping control
-const static double l_cog = 0.69;
-const static double K1 = 3.5;
-const static double K2 = 3.5;
+const static double l_cog = 1.0;
+const static double K1 = 3.0;
+const static double K2 = 3.0;
 
 // declared as global variable for signal handling.
 Robot r;
@@ -176,7 +176,7 @@ void update(Vector3d &x, Matrix3d &P, Vector3d &y, Matrix3d &Cd, Matrix3d &R) {
 
 int main() {
     //r = Robot();
-    vector<int> cameraList = {1, 2, 3};//camerID 0 & 1
+    vector<int> cameraList = {3,2,1};//camerID 0 & 1
     vector<double> cameraAngle = {56, 56, 56}; //camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList, cameraAngle);
 
@@ -225,7 +225,7 @@ int main() {
     Matrix3d Q;
     Matrix3d R;
     Q << 0.001, 0, 0,
-            0, 0.0001, 0,
+            0, 0, 0,
             0, 0, 0.01;
     R << 0.00001, 0, 0,
             0, 0.0001, 0,
@@ -318,7 +318,7 @@ int main() {
              << force[0] << "," << force[1] << endl;
 #endif
         //vector<double> force = calcVoltage({2, 0}, r_inv);
-        //cout << angles[0] << "\t" << angles[1] << endl;
+        cout << angles[0] << "\t" << angles[1] << endl;
         //cout << wheelForce[0] << "," << wheelForce[1] << "," << wheelForce[2] << endl;
         //cout << "velocity: " << velocity[0] << "\t" << velocity[1] << endl;
     }
