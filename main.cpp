@@ -147,7 +147,7 @@ void calcJacob(Vector3d &x, double force, Matrix3d &Ad, double dt) {
             -2.0 * x[1] * dt * l_cog * m * s * c / tmp, 0, 1.0;*/
 }
 
-void predictNextState(Vector3d &x, double force, Matrix3d &P, Matrix3d &Ad, Matrix3d &Q, double dt) {
+void predictNextState(Vector3d &x, double force, double dt) {
     Vector3d x_old = x;
     double c = cos(x[0]);
     double s = sin(x[0]);
@@ -164,7 +164,10 @@ void predictNextState(Vector3d &x, double force, Matrix3d &P, Matrix3d &Ad, Matr
     x[0] = x_old[1] * dt + x_old[0];
     x[1] = x_old[1] + dt * (g * (M + m) * s - tmp2 * c) / tmp;
     x[2] = x_old[2] + dt * (-g * l_cog * m * s * c + l_cog * tmp2) / tmp;
+}
 
+void predictNextState(Vector3d &x, double force, Matrix3d &P, Matrix3d &Ad, Matrix3d &Q, double dt) {
+    predictNextState(x, force, dt);
     P = Ad * P * Ad.transpose() + Q;
 }
 
@@ -240,6 +243,8 @@ int main() {
     Matrix3d Py = Q;
     Vector3d x;
     Vector3d y;
+    Vector3d predict_x;
+    Vector3d predict_y;
     x << 0, 0, 0;
     y << 0, 0, 0;
 
@@ -297,7 +302,11 @@ int main() {
         //PRINT_MAT(x);
         output << angles[1], d_angles[1], velocity[1];
         update(y, Py, output, Cd, R);
-        force = calcForce({x[0], y[0]}, {x[1], y[1]});
+        predict_x = x;
+        predict_y = y;
+        predictNextState(predict_x, force[0], 0.08);
+        predictNextState(predict_y, force[1], 0.08);
+        force = calcForce({predict_x[0], predict_y[0]}, {predict_x[1], predict_y[1]});
         vector<double> wheelForce = calcVoltage({force[0], force[1]}, r_inv);
         for (int i = 0; i < 2; i++) {
             if (force[i] < -14 || force[i] > 14) {
