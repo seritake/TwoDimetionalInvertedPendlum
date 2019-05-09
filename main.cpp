@@ -16,7 +16,7 @@
 #include <fstream>
 
 // comment out this line if no logs are needed.
-#define CREATE_LOG
+//#define CREATE_LOG
 
 // For debug
 #define PRINT_MAT(X) cout << #X << ":\n" << X << endl << endl
@@ -65,8 +65,8 @@ const static double k_phi[2] = {5, 5}; //need to be changed.
 
 // back stepping control
 const static double l_cog = 1.0;
-const static double K1 = 3.0;
-const static double K2 = 3.0;
+const static double K1 = 1.85;
+const static double K2 = 1.85;
 
 // declared as global variable for signal handling.
 Robot r;
@@ -179,7 +179,7 @@ void update(Vector3d &x, Matrix3d &P, Vector2d &y, Matrix<double, 2, 3> &Cd, Mat
 
 int main() {
     //r = Robot();
-    vector<int> cameraList = {3,2,1};//camerID 0 & 1
+    vector<int> cameraList = {1,3,2};//camerID 0 & 1
     vector<double> cameraAngle = {56, 56, 56}; //camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList, cameraAngle);
 
@@ -295,20 +295,25 @@ int main() {
         update(y, Py, output, Cd, R);
         predict_x = x;
         predict_y = y;
-        predictNextState(predict_x, force[0], 0.08);
-        predictNextState(predict_y, force[1], 0.08);
+        predictNextState(predict_x, force[0], 0.15);
+        predictNextState(predict_y, force[1], 0.15);
         force = calcForce({predict_x[0], predict_y[0]}, {predict_x[1], predict_y[1]});
         vector<double> wheelForce = calcVoltage({force[0], force[1]}, r_inv);
         for (int i = 0; i < 2; i++) {
-            if (force[i] < -14 || force[i] > 14) {
-                force[i] = 14 * (force[i] < 0 ? -1 : 1);
+            if (force[i] < -18 || force[i] > 18) {
+                force[i] = 18 * (force[i] < 0 ? -1 : 1);
                 //cout << "out" << endl;
             }
         }
+        double tmp = 0;
         for (int i = 0; i < 3; i++) {
-            if (wheelForce[i] < -14 || wheelForce[i] > 14) {
-                wheelForce[i] = 14 * (wheelForce[i] < 0 ? -1 : 1);
-                //cout << "out" << endl;
+            if (tmp < abs(wheelForce[i])) {
+                tmp = wheelForce[i];
+            }
+        }
+        if (tmp > 18) {
+            for (int i = 0; i < 3; i++) {
+                wheelForce[i] = wheelForce[i] / tmp * 18.0;
             }
         }
         r.setForce(wheelForce);

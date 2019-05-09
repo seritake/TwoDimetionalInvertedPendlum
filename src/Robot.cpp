@@ -199,7 +199,7 @@ void Robot::setDuty(const std::vector<int>& vec) {
 void Robot::setForce(const std::vector<double> &vec) {
     std::vector<int> ans(3);
     for (int i = 0; i < 3; i++) {
-        ans[i] = (int)(839.0 * (6.67 * vec[i] * (WHEEL_RADIUS / 1000.0) * 80 / 0.9) / 15.0);
+        ans[i] = (int)(839.0 * (6.67 * vec[i] * (WHEEL_RADIUS / 1000.0) * 80 / 0.9) / 19.0);
         if (ans[i] >= 830 || ans[i] <= -830) {
             std::cout << "out" << std::endl;
             ans[i] = 830 * (ans[i] > 0 ? 1 : -1);
