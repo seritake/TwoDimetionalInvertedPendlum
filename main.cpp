@@ -1,6 +1,7 @@
 #include <iostream>
 #include "include/Robot.hpp"
 #include "src/trackModule/cameraHandler.hpp"
+#include "include/JoyStick.hpp"
 #include <unistd.h>
 #include <chrono>
 #include <stdio.h>
@@ -14,6 +15,11 @@
 #include <sstream>
 #include <iomanip>
 #include <fstream>
+#include <fcntl.h>
+#include <linux/joystick.h>
+#include <linux/input.h>
+
+#define JOY_DEV "/dev/input/js0"
 
 // comment out this line if no logs are needed.
 //#define CREATE_LOG
@@ -22,6 +28,10 @@
 #define PRINT_MAT(X) cout << #X << ":\n" << X << endl << endl
 #define PRINT_MAT2(X, DESC) cout << DESC << ":\n" << X << endl << endl
 #define PRINT_FNC    cout << "[" << __func__ << "]" << endl
+
+// For joycon
+#define BUTTON_DATA_MAX 100
+#define STICK_DATA_MAX 100
 
 using namespace std;
 using namespace Eigen;
@@ -65,8 +75,8 @@ const static double k_phi[2] = {5, 5}; //need to be changed.
 
 // back stepping control
 const static double l_cog = 1.0;
-const static double K1 = 1.85;
-const static double K2 = 1.85;
+const static double K1 = 1.75;
+const static double K2 = 1.75;
 
 // declared as global variable for signal handling.
 Robot r;
@@ -178,8 +188,7 @@ void update(Vector3d &x, Matrix3d &P, Vector2d &y, Matrix<double, 2, 3> &Cd, Mat
 }
 
 int main() {
-    //r = Robot();
-    vector<int> cameraList = {1,3,2};//camerID 0 & 1
+    vector<int> cameraList = {3, 2, 1};//camerID 0 & 1
     vector<double> cameraAngle = {56, 56, 56}; //camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList, cameraAngle);
 
@@ -252,8 +261,29 @@ int main() {
     angles = cameraHandler.getAngle();
 
     int wait;
-    cout << "waiting for input...";
+    cout << "waiting for input..." << endl;
+    cout << "put 0 enables controller mode" << endl;
     cin >> wait;
+    if (wait == 0) {
+        cJoystick st = cJoystick();
+        while (true) {
+            joystick_position jp = st.joystickPosition(0);
+            vector<double> wheelForce(3);
+            wheelForce = calcVoltage({jp.x * 17.0, jp.y * 17.0}, r_inv);
+            double tmp = 0;
+            for (int i = 0; i < 3; i++) {
+                if (tmp < abs(wheelForce[i])) {
+                    tmp = wheelForce[i];
+                }
+            }
+            if (tmp > 18) {
+                for (int i = 0; i < 3; i++) {
+                    wheelForce[i] = wheelForce[i] / tmp * 18.0;
+                }
+            }
+            r.setForce(wheelForce);
+        }
+    }
     for (int i = 0; i < 5; i++) {
         angles = cameraHandler.getAngle();
         velocity = r.getVelocity();

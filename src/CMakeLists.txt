@@ -1,5 +1,6 @@
 add_library(Robot STATIC
         Robot.cpp
+        JoyStick.cpp
         serial.cc
         impl/unix.cc
         impl/list_ports/list_ports_linux.cc
