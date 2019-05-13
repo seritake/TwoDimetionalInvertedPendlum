@@ -75,14 +75,46 @@ const static double k_phi[2] = {5, 5}; //need to be changed.
 
 // back stepping control
 const static double l_cog = 1.0;
-const static double K1 = 1.75;
-const static double K2 = 1.75;
+const static double K1 = 1.85;
+const static double K2 = 1.85;
 
 // declared as global variable for signal handling.
 Robot r;
 #ifdef CREATE_LOG
 std::ofstream fout;
 #endif
+
+
+Matrix4d calcP(const Matrix4d& A,const Matrix4d& B,const Matrix4d& Q,const Matrix<double, 1, 1> R) {
+    int n = (int)A.rows();
+    // Hamilton Matrix
+    MatrixXd Ham(2*n, 2*n);
+    Ham << A, -B*R.inverse()*B.transpose(), -Q, -A.transpose();
+
+    // EigenVec, Value
+    EigenSolver<MatrixXd> Eigs(Ham);
+    if (Eigs.info() != Eigen::Success) abort();
+
+    // eigenvector storage
+    MatrixXcd eigvec(2*n, n);
+    int j = 0;
+
+    // store those with negative real number
+    for(int i = 0; i < 2*n; ++i){
+        if(Eigs.eigenvalues()[i].real() < 0){
+            eigvec.col(j) = Eigs.eigenvectors().block(0, i, 2*n, 1);
+            ++j;
+        }
+    }
+
+    MatrixXcd U(n, n);
+    MatrixXcd V(n, n);
+
+    U = eigvec.block(0,0,n,n);
+    V = eigvec.block(n,0,n,n);
+
+    return (V * U.inverse()).real();
+}
 
 vector<double> calcForce(std::vector<double> &&angle, std::vector<double> &&angle_velocity) {
     vector<double> e_b(2);
@@ -125,23 +157,24 @@ inline long getDiffUs(struct timeval &now, struct timeval &pre) {
     return (now.tv_sec - pre.tv_sec) * 1000000 + now.tv_usec - pre.tv_usec;
 }
 
-void calcJacob(Vector3d &x, double force, Matrix3d &Ad, double dt) {
+void calcJacob(Vector4d &x, double force, Matrix4d &Ad, double dt) {
     static double tmp;
     double c = cos(x[0]);
     double s = sin(x[0]);
     tmp = l_cog * (M + m) - l_cog * m * c * c;
 
-    Ad << 1.0, dt, 0,
+    Ad << 1.0, dt, 0, 0,
             dt * (-x[1] * x[1] * l_cog * m * c * c / tmp - 2.0 * g * l_cog * m * (M + m) * s * s * c / tmp / tmp +
                   g * (M + m) * c / tmp
                   + 2.0 * l_cog * m * (force + x[1] * x[1] * l_cog * m * s) * s * c * c / tmp / tmp +
                   (force + x[1] * x[1] * l_cog * m * s) * s / tmp), -2.0 * x[1] * dt * l_cog * m * s * c / tmp +
-                                                                    1.0, 0,
+                                                                    1.0, 0, 0,
+            0, 0, 1, dt,
             dt *
             (x[1] * x[1] * l_cog * l_cog * m * c / tmp + 2.0 * g * l_cog * l_cog * m * m * s * s * c * c / tmp / tmp
              + g * l_cog * m * (s * s - c * c) / tmp -
              2.0 * l_cog * l_cog * m * (force + x[1] * x[1] * l_cog * m * s) * s * c / tmp / tmp),
-            2.0 * x[1] * dt * l_cog * l_cog * m * s / tmp, 1;
+            2.0 * x[1] * dt * l_cog * l_cog * m * s / tmp, 0, 1;
 
     /*Ad << 1.0, dt, 0, 0,
             dt *
@@ -157,8 +190,8 @@ void calcJacob(Vector3d &x, double force, Matrix3d &Ad, double dt) {
             -2.0 * x[1] * dt * l_cog * m * s * c / tmp, 0, 1.0;*/
 }
 
-void predictNextState(Vector3d &x, double force, double dt) {
-    Vector3d x_old = x;
+void predictNextState(Vector4d &x, double force, double dt) {
+    Vector4d x_old = x;
     double c = cos(x[0]);
     double s = sin(x[0]);
     double tmp = l_cog * (M + m) - l_cog * m * c * c;
@@ -173,18 +206,19 @@ void predictNextState(Vector3d &x, double force, double dt) {
     //cout << "tmp2: " << tmp2 << endl;
     x[0] = x_old[1] * dt + x_old[0];
     x[1] = x_old[1] + dt * (g * (M + m) * s - tmp2 * c) / tmp;
-    x[2] = x_old[2] + dt * (-g * l_cog * m * s * c + l_cog * tmp2) / tmp;
+    x[2] = x_old[3] * dt + x_old[2];
+    x[3] = x_old[3] + dt * (-g * l_cog * m * s * c + l_cog * tmp2) / tmp;
 }
 
-void predictNextState(Vector3d &x, double force, Matrix3d &P, Matrix3d &Ad, Matrix3d &Q, double dt) {
+void predictNextState(Vector4d &x, double force, Matrix4d &P, Matrix4d &Ad, Matrix4d &Q, double dt) {
     predictNextState(x, force, dt);
     P = Ad * P * Ad.transpose() + Q;
 }
 
-void update(Vector3d &x, Matrix3d &P, Vector2d &y, Matrix<double, 2, 3> &Cd, Matrix2d &R) {
-    Matrix<double, 3, 2> K = P * Cd.transpose() * (Cd * P * Cd.transpose() + R).inverse();
+void update(Vector4d &x, Matrix4d &P, Vector2d &y, Matrix<double, 2, 4> &Cd, Matrix2d &R) {
+    Matrix<double, 4, 2> K = P * Cd.transpose() * (Cd * P * Cd.transpose() + R).inverse();
     x = x + K * (y - Cd * x);
-    P = (MatrixXd::Identity(3, 3) - K * Cd) * P;
+    P = (MatrixXd::Identity(4, 4) - K * Cd) * P;
 }
 
 int main() {
@@ -225,8 +259,27 @@ int main() {
     Vector2d anglesVec;
     std::vector<double> force = {0, 0};
 
-    Matrix3d Adx;
-    Matrix3d Ady;
+    // for lqr control
+    Matrix4d A;
+    A << 0, 1, 0, 0,
+            g * (M + m) / l_cog / M, 0, 0, 0,
+            0, 0, 0, 1,
+            - g * l_cog * m / M, 0, 0, 0;
+    Vector4d B;
+    B << 0, 1.0 / l_cog / M, 0, 1.0 / M;
+    Matrix<double, 1, 1> R_lqr;
+    R_lqr << 0.1;
+    Matrix4d Q;
+    Q << 10, 0, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 100, 0,
+            0,0,0,0;
+    Matrix4d P = calcP(A, B, Q, R_lqr);
+    Vector4d K = - R_lqr.inverse() * B.transpose() * P;
+
+    // for kalman filter
+    Matrix4d Adx;
+    Matrix4d Ady;
     double dt = 0.01;
 
     Matrix3d r_inv;
@@ -234,26 +287,27 @@ int main() {
             25.0 / 9.0, -1.0 / 3.0 * 1.73205, -1.0 / 3.0,
             25.0 / 9.0, 1.0 / 3.0 * 1.73205, -1.0 / 3.0;
 
-    Matrix3d Q;
+    Matrix4d Q;
     Matrix2d R;
-    Q << 0.001, 0, 0,
-            0, 0, 0,
-            0, 0, 0.01;
+    Q << 0.001, 0, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 0.002, 0,
+            0, 0, 0, 0.002,
     R << 0.00001, 0,
             0, 0.0001;
 
-    Matrix<double, 2, 3> Cd;
-    Cd << 1, 0, 0,
-            0, 0, 1;
+    Matrix<double, 2, 4> Cd;
+    Cd << 1, 0, 0, 0,
+            0, 0, 0, 1;
 
-    Matrix3d Px = Q;
-    Matrix3d Py = Q;
-    Vector3d x;
-    Vector3d y;
-    Vector3d predict_x;
-    Vector3d predict_y;
-    x << 0, 0, 0;
-    y << 0, 0, 0;
+    Matrix4d Px = Q;
+    Matrix4d Py = Q;
+    Vector4d x;
+    Vector4d y;
+    Vector4d predict_x;
+    Vector4d predict_y;
+    x << 0, 0, 0, 0;
+    y << 0, 0, 0, 0;
 
     Vector2d output;
 
@@ -269,16 +323,16 @@ int main() {
         while (true) {
             joystick_position jp = st.joystickPosition(0);
             vector<double> wheelForce(3);
-            wheelForce = calcVoltage({jp.x * 17.0, jp.y * 17.0}, r_inv);
+            wheelForce = calcVoltage({jp.x * 2.0, jp.y * 2.0}, r_inv);
             double tmp = 0;
             for (int i = 0; i < 3; i++) {
                 if (tmp < abs(wheelForce[i])) {
-                    tmp = wheelForce[i];
+                    tmp = abs(wheelForce[i]);
                 }
             }
-            if (tmp > 18) {
+            if (tmp > 2.0) {
                 for (int i = 0; i < 3; i++) {
-                    wheelForce[i] = wheelForce[i] / tmp * 18.0;
+                    wheelForce[i] = wheelForce[i] / tmp * 2.0;
                 }
             }
             r.setForce(wheelForce);
@@ -327,23 +381,25 @@ int main() {
         predict_y = y;
         predictNextState(predict_x, force[0], 0.15);
         predictNextState(predict_y, force[1], 0.15);
-        force = calcForce({predict_x[0], predict_y[0]}, {predict_x[1], predict_y[1]});
+        //force = calcForce({predict_x[0], predict_y[0]}, {predict_x[1], predict_y[1]});
+        force[0] = K * predict_x;
+        force[1] = K * predict_y;
         vector<double> wheelForce = calcVoltage({force[0], force[1]}, r_inv);
         for (int i = 0; i < 2; i++) {
-            if (force[i] < -18 || force[i] > 18) {
-                force[i] = 18 * (force[i] < 0 ? -1 : 1);
+            if (force[i] < -17.0 || force[i] > 17.0) {
+                force[i] = 17.0 * (force[i] < 0 ? -1 : 1);
                 //cout << "out" << endl;
             }
         }
         double tmp = 0;
         for (int i = 0; i < 3; i++) {
             if (tmp < abs(wheelForce[i])) {
-                tmp = wheelForce[i];
+                tmp = abs(wheelForce[i]);
             }
         }
-        if (tmp > 18) {
+        if (tmp > 17.0) {
             for (int i = 0; i < 3; i++) {
-                wheelForce[i] = wheelForce[i] / tmp * 18.0;
+                wheelForce[i] = wheelForce[i] / tmp * 17.0;
             }
         }
         r.setForce(wheelForce);
