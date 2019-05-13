@@ -85,11 +85,11 @@ std::ofstream fout;
 #endif
 
 
-Matrix4d calcP(const Matrix4d& A,const Matrix4d& B,const Matrix4d& Q,const Matrix<double, 1, 1> R) {
+Matrix4d calcP(const Matrix4d& A,const Vector4d& B,const Matrix4d& Q,const Matrix<double, 1, 1>& R) {
     int n = (int)A.rows();
     // Hamilton Matrix
     MatrixXd Ham(2*n, 2*n);
-    Ham << A, -B*R.inverse()*B.transpose(), -Q, -A.transpose();
+    Ham << A, -B* R.inverse() * B.transpose() , -Q, -A.transpose();
 
     // EigenVec, Value
     EigenSolver<MatrixXd> Eigs(Ham);
@@ -222,7 +222,7 @@ void update(Vector4d &x, Matrix4d &P, Vector2d &y, Matrix<double, 2, 4> &Cd, Mat
 }
 
 int main() {
-    vector<int> cameraList = {3, 2, 1};//camerID 0 & 1
+    vector<int> cameraList = {2, 3, 1};//camerID 0 & 1
     vector<double> cameraAngle = {56, 56, 56}; //camera's angle of view. specify for 2 cameras
     CameraHandler cameraHandler = CameraHandler(cameraList, cameraAngle);
 
@@ -266,16 +266,16 @@ int main() {
             0, 0, 0, 1,
             - g * l_cog * m / M, 0, 0, 0;
     Vector4d B;
-    B << 0, 1.0 / l_cog / M, 0, 1.0 / M;
+    B << 0, -1.0 / l_cog / M, 0, 1.0 / M;
     Matrix<double, 1, 1> R_lqr;
-    R_lqr << 0.1;
-    Matrix4d Q;
-    Q << 10, 0, 0, 0,
-            0, 0, 0, 0,
-            0, 0, 100, 0,
-            0,0,0,0;
-    Matrix4d P = calcP(A, B, Q, R_lqr);
-    Vector4d K = - R_lqr.inverse() * B.transpose() * P;
+    R_lqr << 1;
+    Matrix4d Q_lqr;
+    Q_lqr << 100000, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 10, 0,
+            0,0,0,1;
+    Matrix4d P = calcP(A, B, Q_lqr, R_lqr);
+    Matrix<double, 1, 4> K = - R_lqr.inverse() * B.transpose() * P;
 
     // for kalman filter
     Matrix4d Adx;
@@ -379,15 +379,15 @@ int main() {
         update(y, Py, output, Cd, R);
         predict_x = x;
         predict_y = y;
-        predictNextState(predict_x, force[0], 0.15);
-        predictNextState(predict_y, force[1], 0.15);
+        predictNextState(predict_x, force[0], 0.20);
+        predictNextState(predict_y, force[1], 0.20);
         //force = calcForce({predict_x[0], predict_y[0]}, {predict_x[1], predict_y[1]});
-        force[0] = K * predict_x;
-        force[1] = K * predict_y;
+        force[0] = K * x;
+        force[1] = K * y;
         vector<double> wheelForce = calcVoltage({force[0], force[1]}, r_inv);
         for (int i = 0; i < 2; i++) {
-            if (force[i] < -17.0 || force[i] > 17.0) {
-                force[i] = 17.0 * (force[i] < 0 ? -1 : 1);
+            if (force[i] < -4.0 || force[i] > 4.0) {
+                force[i] = 4.0 * (force[i] < 0 ? -1 : 1);
                 //cout << "out" << endl;
             }
         }
@@ -397,9 +397,9 @@ int main() {
                 tmp = abs(wheelForce[i]);
             }
         }
-        if (tmp > 17.0) {
+        if (tmp > 4.0) {
             for (int i = 0; i < 3; i++) {
-                wheelForce[i] = wheelForce[i] / tmp * 17.0;
+                wheelForce[i] = wheelForce[i] / tmp * 4.0;
             }
         }
         r.setForce(wheelForce);
