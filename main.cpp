@@ -269,16 +269,16 @@ int main() {
         while (true) {
             joystick_position jp = st.joystickPosition(0);
             vector<double> wheelForce(3);
-            wheelForce = calcVoltage({jp.x * 17.0, jp.y * 17.0}, r_inv);
+            wheelForce = calcVoltage({jp.x * 2.0, jp.y * 2.0}, r_inv);
             double tmp = 0;
             for (int i = 0; i < 3; i++) {
                 if (tmp < abs(wheelForce[i])) {
-                    tmp = wheelForce[i];
+                    tmp = abs(wheelForce[i]);
                 }
             }
-            if (tmp > 18) {
+            if (tmp > 2.0) {
                 for (int i = 0; i < 3; i++) {
-                    wheelForce[i] = wheelForce[i] / tmp * 18.0;
+                    wheelForce[i] = wheelForce[i] / tmp * 2.0;
                 }
             }
             r.setForce(wheelForce);
@@ -338,7 +338,7 @@ int main() {
         double tmp = 0;
         for (int i = 0; i < 3; i++) {
             if (tmp < abs(wheelForce[i])) {
-                tmp = wheelForce[i];
+                tmp = abs(wheelForce[i]);
             }
         }
         if (tmp > 18) {
