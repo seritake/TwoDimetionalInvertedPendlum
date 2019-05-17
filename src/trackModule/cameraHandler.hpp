@@ -69,6 +69,9 @@ vector<double> CameraHandler::getAngle(){
             points[i] = {0,0};
         }
     }
+    if (count == 0) {
+        return {0, 0};
+    }
     b_tmp << CAMERA_HEIGHT * (CENTER_X - points[0].x), -FOCUS * ROBOT_RADIUS + CAMERA_HEIGHT * (CENTER_Y - points[0].y),
             CAMERA_HEIGHT * (CENTER_X - points[1].x), -FOCUS * ROBOT_RADIUS + CAMERA_HEIGHT * (CENTER_Y - points[1].y),
             CAMERA_HEIGHT * (CENTER_X - points[2].x), -FOCUS * ROBOT_RADIUS + CAMERA_HEIGHT * (CENTER_Y - points[2].y);
@@ -111,5 +114,5 @@ vector<double> CameraHandler::getAngle(){
         }
     }*/
     cout << "x: " << x[0] << "y: " << x[1] << "z: " << x[2] << endl;
-    return {std::atan((x[0]+3.3) / x[2])*11.0, std::atan((x[1]+0.2) / x[2])*11.0};
+    return {std::atan((x[0] + 4.5) / x[2])*7.0, std::atan((x[1]+ 2.6) / x[2])*7.0};
 }
